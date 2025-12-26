@@ -1,0 +1,26 @@
+# Data configuration
+data_file: investments_VC.csv  # Main data file name
+
+# DataModule parameters
+batch_size: 128
+num_workers: 4
+
+# Temporal split dates
+train_end: "2015-01-01"
+val_end: "2018-01-01"
+
+# Column names
+target_col: status
+date_col: founded_at
+
+# Categorical columns (to be determined from actual dataset)
+categorical_cols:
+  - category_code
+  - country_code
+  - state_code
+
+# Feature engineering
+handle_missing: drop  # Options: drop, mean, median, fill
+encoding_method: label  # Options: label, onehot
+
+

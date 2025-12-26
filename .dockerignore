@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Data
+data/
+plots/
+
+# Logs
+logs/
+*.log
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Hydra
+outputs/
+multirun/
+.hydra/
+
+# DVC
+.dvc/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation
+*.md
+!README.md
+
+# Environment
+.env
+env.example
+
+# Task files
+task/
+

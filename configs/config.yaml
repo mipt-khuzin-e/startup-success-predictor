@@ -1,0 +1,30 @@
+# Main configuration file
+defaults:
+  - data: startup
+  - model: classifier
+  - train: default
+  - _self_
+
+# Random seed for reproducibility
+seed: 30
+
+# Paths
+paths:
+  data_dir: data
+  raw_data_dir: ${paths.data_dir}/raw
+  processed_data_dir: ${paths.data_dir}/processed
+  models_dir: models
+  plots_dir: plots
+
+# MLFlow
+mlflow:
+  tracking_uri: http://127.0.0.1:8080
+  experiment_name: startup-success-predictor
+  run_name: null  # Auto-generated if null
+
+# Logging
+logging:
+  log_dir: logs
+  log_level: INFO
+
+

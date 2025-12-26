@@ -1,0 +1,34 @@
+# MLP Classifier configuration
+name: mlp_classifier
+
+# Architecture
+architecture:
+  hidden_dims: [256, 128, 64]
+  activation: leaky_relu
+  leaky_relu_slope: 0.2
+  use_batch_norm: true
+  dropout: 0.3
+  output_dim: 1  # Binary classification
+
+# Training
+training:
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  optimizer: adam
+  beta1: 0.9
+  beta2: 0.999
+
+# Loss
+loss:
+  pos_weight: 10.0  # Weight for positive class (to handle imbalance)
+
+# Metrics
+metrics:
+  - auroc
+  - auprc
+  - f1
+  - precision
+  - recall
+  - accuracy
+
+
