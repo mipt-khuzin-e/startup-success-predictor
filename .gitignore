@@ -136,7 +136,6 @@ dmypy.json
 cython_debug/
 
 # DVC
-/dvc.lock
 /.dvc/tmp
 /.dvc/cache
 
@@ -174,5 +173,3 @@ Thumbs.db
 
 # Plots
 /plots/
-
-

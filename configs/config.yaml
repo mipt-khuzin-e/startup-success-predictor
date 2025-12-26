@@ -18,13 +18,12 @@ paths:
 
 # MLFlow
 mlflow:
-  tracking_uri: http://127.0.0.1:8080
+  # По умолчанию пишем логи в локальную директорию mlruns
+  tracking_uri: file:mlruns
   experiment_name: startup-success-predictor
-  run_name: null  # Auto-generated if null
+  run_name: null # Auto-generated if null
 
 # Logging
 logging:
   log_dir: logs
   log_level: INFO
-
-

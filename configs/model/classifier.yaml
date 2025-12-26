@@ -8,7 +8,7 @@ architecture:
   leaky_relu_slope: 0.2
   use_batch_norm: true
   dropout: 0.3
-  output_dim: 1  # Binary classification
+  output_dim: 1 # Binary classification
 
 # Training
 training:
@@ -20,7 +20,7 @@ training:
 
 # Loss
 loss:
-  pos_weight: 10.0  # Weight for positive class (to handle imbalance)
+  pos_weight: 10.0 # Weight for positive class (to handle imbalance)
 
 # Metrics
 metrics:
@@ -30,5 +30,3 @@ metrics:
   - precision
   - recall
   - accuracy
-
-

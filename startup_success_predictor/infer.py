@@ -1,14 +1,16 @@
-"""Inference script for startup success prediction."""
+"""Inference utilities for startup success prediction.
 
-import argparse
+This module provides reusable functions for loading a model, preprocessing
+inputs, and running predictions. CLI entrypoints are implemented in
+``startup_success_predictor.cli`` (Typer-based).
+"""
+
 from pathlib import Path
 
 import polars as pl
 import torch
 
-from startup_success_predictor.data.preprocessing import (
-    polars_to_tensor,
-)
+from startup_success_predictor.data.preprocessing import polars_to_tensor
 from startup_success_predictor.models.classifier_module import ClassifierModule
 
 
@@ -53,7 +55,9 @@ def preprocess_input(
         for col in categorical_cols:
             if col in encoding_meta:
                 mapping = encoding_meta[col]["mapping"]
-                df = df.with_columns(pl.col(col).replace_strict(mapping, default=None).alias(col))
+                df = df.with_columns(
+                    pl.col(col).replace_strict(mapping, default=None).alias(col)
+                )
 
     # Normalize features
     numerical_cols = [col for col in feature_cols if col not in categorical_cols]
@@ -90,79 +94,7 @@ def predict(
     return preds, probs
 
 
-def main() -> None:
-    """Main entry point for inference."""
-    parser = argparse.ArgumentParser(description="Run inference on startup data")
-    parser.add_argument(
-        "--checkpoint",
-        type=str,
-        required=True,
-        help="Path to model checkpoint",
-    )
-    parser.add_argument(
-        "--input",
-        type=str,
-        required=True,
-        help="Path to input CSV file",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="Path to save predictions (default: predictions.csv)",
-    )
-
-    args = parser.parse_args()
-
-    checkpoint_path = Path(args.checkpoint)
-    input_path = Path(args.input)
-
-    if args.output is None:
-        output_path = Path("predictions.csv")
-    else:
-        output_path = Path(args.output)
-
-    # Load model
-    model = load_model(checkpoint_path)
-
-    # Load input data
-    print(f"Loading input data from: {input_path}")
-    df = pl.read_csv(input_path)
-    print(f"Input shape: {df.shape}")
-
-    # Note: In a real scenario, you would need to load preprocessing metadata
-    # (feature_cols, categorical_cols, normalization_stats, encoding_meta)
-    # from the training run. For now, this is a placeholder.
-    print("\nWarning: Preprocessing metadata should be loaded from training run.")
-    print("This is a simplified example.")
-
-    # Make predictions (simplified - assumes preprocessed input)
-    # In production, you would apply the same preprocessing as during training
-    input_tensor = torch.from_numpy(df.to_numpy()).float()
-    preds, probs = predict(model, input_tensor)
-
-    # Add predictions to DataFrame
-    df = df.with_columns(
-        [
-            pl.Series("prediction", preds.squeeze().numpy()),
-            pl.Series("probability", probs.squeeze().numpy()),
-        ]
-    )
-
-    # Save predictions
-    print(f"\nSaving predictions to: {output_path}")
-    df.write_csv(output_path)
-    print("Predictions saved successfully!")
-
-    # Print summary
-    n_positive = (preds == 1).sum().item()
-    print("\nPrediction summary:")
-    print(f"  Total samples: {len(df)}")
-    print(f"  Predicted successful: {n_positive} ({n_positive / len(df) * 100:.2f}%)")
-    print(
-        f"  Predicted unsuccessful: {len(df) - n_positive} ({(len(df) - n_positive) / len(df) * 100:.2f}%)"
-    )
-
-
-if __name__ == "__main__":
-    main()
+# NOTE:
+# This module intentionally does not provide a standalone CLI. Use the
+# Typer-based ``infer`` command in ``startup_success_predictor.cli`` for
+# end-user inference from the command line.

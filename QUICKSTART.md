@@ -1,185 +1,188 @@
-# Quick Start Guide
+# Руководство по быстрому старту (Quick Start)
 
-## Prerequisites
+## Предварительные требования
 
-Install the following tools:
+Установить следующие инструменты:
 
 ```bash
-# Install uv (package manager)
+# Установка uv (пакетный менеджер)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Ensure you have Git and Python 3.12+
-python --version  # Should be 3.12+
+# Убедиться, что у вас установлены Git и Python 3.12+
+python --version  # Должно быть 3.12+
 ```
 
-## Setup (5 minutes)
+## Настройка (5 минут)
 
 ```bash
-# 1. Navigate to project
+# 1. Перейти в директорию проекта
 cd /Users/khuzin.e/Projects/mipt-2025-mlops
 
-# 2. Create virtual environment
+# 2. Создать виртуальное окружение
 uv venv --python 3.12
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Для Windows: .venv\Scripts\activate
 
-# 3. Install dependencies
+# 3. Установить зависимости
 uv pip install -e ".[dev]"
 
-# 4. Setup pre-commit hooks
+# 4. Настроить pre-commit хуки
 pre-commit install
 
-# 5. Configure environment
+# 5. Настроить окружение
 cp env.example .env
-# Edit .env and add your Kaggle credentials:
-#   KAGGLE_USERNAME=your_username
-#   KAGGLE_KEY=your_api_key
+# Отредактировать .env и добавить ваши учетные данные Kaggle:
+#   KAGGLE_USERNAME=ваше_имя_пользователя
+#   KAGGLE_KEY=ваша_api_ключ
 ```
 
-## Download Data
+## Загрузка данных (через стадию DVC)
 
 ```bash
-# Download dataset from Kaggle
-python -m startup_success_predictor.data.download
-
-# Version with DVC
-dvc add data/raw
-git add data/raw.dvc .gitignore
-git commit -m "Add dataset"
+# Заполнение data/raw с использованием стадии загрузки под управлением DVC
+dvc repro download
 ```
 
-## Training
+## Обучение
 
 ```bash
-# Terminal 1: Start MLFlow server
+# Терминал 1: Запуск сервера MLFlow
 mlflow server --host 127.0.0.1 --port 8080
 
-# Terminal 2: Train models
-python -m startup_success_predictor.train
+# Терминал 2: Обучение моделей через Typer CLI
+python -m startup_success_predictor.cli train
 
-# View experiments at http://127.0.0.1:8080
+# Просмотр экспериментов по адресу http://127.0.0.1:8080
 ```
 
-## Inference
+## Инференс
 
 ```bash
-# Export model to ONNX
-python -m startup_success_predictor.export_onnx \
+# Экспорт модели в ONNX
+python -m startup_success_predictor.cli export-onnx \
     --checkpoint models/classifier/best.ckpt \
-    --input-dim <number_of_features>
+    --input-dim <количество_признаков>
 
-# Run inference
-python -m startup_success_predictor.infer \
+# Запуск инференса через CLI
+python -m startup_success_predictor.cli infer \
     --checkpoint models/classifier/best.ckpt \
-    --input data/test_sample.csv
+    --input-csv data/test_sample.csv \
+    --output-csv predictions.csv
 ```
 
-## API Deployment
+## Развертывание API
 
-### Local
+### Локально
+
 ```bash
 uvicorn startup_success_predictor.app:app --reload
-# API available at http://localhost:8000
-# Docs at http://localhost:8000/docs
+# API доступно по адресу http://localhost:8000
+# Документация по адресу http://localhost:8000/docs
 ```
 
 ### Docker
+
 ```bash
-# Build and run
+# Сборка и запуск
 docker-compose up -d
 
-# Check status
+# Проверка статуса
 docker-compose ps
 
-# View logs
+# Просмотр логов
 docker-compose logs -f api
 
-# Stop
+# Остановка
 docker-compose down
 ```
 
-## Development
+## Разработка
 
-### Code Quality
+### Качество кода
+
 ```bash
-# Lint
+# Линтинг
 ruff check startup_success_predictor/
 
-# Format
+# Форматирование
 ruff format startup_success_predictor/
 
-# Type check
+# Проверка типов
 mypy startup_success_predictor/
 
-# Run all checks
+# Запуск всех проверок
 pre-commit run --all-files
 ```
 
-### Testing
+### Тестирование
+
 ```bash
-pytest  # When tests are added
+pytest  # Когда тесты будут добавлены
 ```
 
-## Project Structure
+## Структура проекта
 
 ```
 startup_success_predictor/
 ├── data/
-│   ├── download.py      # Download from Kaggle
+│   ├── download.py      # Загрузка с Kaggle
 │   ├── datamodule.py    # PyTorch Lightning DataModule
-│   └── preprocessing.py # Polars preprocessing
+│   └── preprocessing.py # Предобработка с Polars
 ├── models/
 │   ├── gan_module.py        # WGAN-GP
-│   ├── classifier_module.py # MLP Classifier
-│   └── components/          # Network architectures
-├── train.py             # Training pipeline
-├── export_onnx.py      # Model export
-├── infer.py            # Inference script
-└── app.py              # FastAPI service
+│   ├── classifier_module.py # MLP Классификатор
+│   └── components/          # Архитектуры сетей
+├── train.py             # Пайплайн обучения
+├── export_onnx.py       # Экспорт модели
+├── infer.py             # Скрипт инференса
+└── app.py               # Сервис FastAPI
 ```
 
-## Configuration
+## Конфигурация
 
-Edit `configs/` to modify:
-- `data/startup.yaml` - Data parameters
-- `model/gan.yaml` - GAN architecture
-- `model/classifier.yaml` - Classifier architecture
-- `train/default.yaml` - Training settings
+Редактировать файлы в `configs/` для изменения параметров:
 
-## Troubleshooting
+- `data/startup.yaml` - Параметры данных
+- `model/gan.yaml` - Архитектура GAN
+- `model/classifier.yaml` - Архитектура классификатора
+- `train/default.yaml` - Настройки обучения
 
-### Import errors
+## Устранение неполадок
+
+### Ошибки импорта
+
 ```bash
-# Reinstall in editable mode
+# Переустановить в режиме редактирования (editable mode)
 uv pip install -e .
 ```
 
-### MLFlow not connecting
+### MLFlow не подключается
+
 ```bash
-# Check if server is running
+# Проверить, запущен ли сервер
 curl http://127.0.0.1:8080/health
 
-# Restart server
+# Перезапустить сервер
 mlflow server --host 127.0.0.1 --port 8080
 ```
 
-### DVC errors
+### Ошибки DVC
+
 ```bash
-# Reinitialize DVC
+# Реинициализировать DVC
 dvc init --force
 ```
 
-## Next Steps
+## Следующие шаги
 
-1. ✅ Project setup complete
-2. ⏳ Download dataset
-3. ⏳ Train models
-4. ⏳ Evaluate performance
-5. ⏳ Deploy API
-6. ⏳ Monitor with MLFlow
+1.  ✅ Настройка проекта завершена
+2.  ⏳ Загрузка набора данных
+3.  ⏳ Обучение моделей
+4.  ⏳ Оценка производительности
+5.  ⏳ Развертывание API
+6.  ⏳ Мониторинг с MLFlow
 
-## Resources
+## Ресурсы
 
-- [README.md](README.md) - Full documentation
-- [IMPLEMENTATION.md](IMPLEMENTATION.md) - Technical details
-- [Task PDFs](task/) - Project requirements
-
+- [README.md](README.md) - Полная документация
+- [IMPLEMENTATION.md](IMPLEMENTATION.md) - Технические детали
+- [PDF с заданиями](task/) - Требования к проекту

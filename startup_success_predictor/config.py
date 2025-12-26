@@ -15,12 +15,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Kaggle credentials
-    kaggle_username: str
-    kaggle_key: str
+    # Kaggle credentials (optional for parts of the project that don't touch Kaggle)
+    kaggle_username: str = ""
+    kaggle_key: str = ""
 
     # MLFlow
-    mlflow_tracking_uri: str = "http://127.0.0.1:8080"
+    mlflow_tracking_uri: str = "file:mlruns"
 
     # Reproducibility
     random_seed: int = 30
@@ -35,5 +35,10 @@ class Settings(BaseSettings):
 
 
 def get_settings() -> Settings:
-    """Get application settings."""
+    """Get application settings.
+
+    Note:
+        Pydantic ``BaseSettings`` reads values from environment and can raise
+        validation errors at runtime.
+    """
     return Settings()

@@ -1,11 +1,13 @@
-"""Export trained model to ONNX format."""
+"""Export trained model to ONNX format.
 
-import argparse
+This module exposes :func:`export_to_onnx` as a library function. CLI entrypoints
+should be implemented in ``startup_success_predictor.cli`` (Typer-based).
+"""
+
 from pathlib import Path
 
 import torch
 
-from startup_success_predictor.config import get_settings
 from startup_success_predictor.models.classifier_module import ClassifierModule
 
 
@@ -37,7 +39,7 @@ def export_to_onnx(
     print(f"Exporting to ONNX: {output_path}")
     torch.onnx.export(
         model,
-        dummy_input,
+        (dummy_input,),
         output_path,
         export_params=True,
         opset_version=opset_version,
@@ -60,53 +62,8 @@ def export_to_onnx(
     print("ONNX model validation passed!")
 
 
-def main() -> None:
-    """Main entry point for ONNX export."""
-    parser = argparse.ArgumentParser(description="Export model to ONNX format")
-    parser.add_argument(
-        "--checkpoint",
-        type=str,
-        required=True,
-        help="Path to model checkpoint",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="Path to save ONNX model (default: models/classifier.onnx)",
-    )
-    parser.add_argument(
-        "--input-dim",
-        type=int,
-        required=True,
-        help="Input dimension of the model",
-    )
-    parser.add_argument(
-        "--opset-version",
-        type=int,
-        default=14,
-        help="ONNX opset version",
-    )
-
-    args = parser.parse_args()
-
-    settings = get_settings()
-    checkpoint_path = Path(args.checkpoint)
-
-    if args.output is None:
-        output_path = settings.models_dir / "classifier.onnx"
-    else:
-        output_path = Path(args.output)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    export_to_onnx(
-        checkpoint_path=checkpoint_path,
-        output_path=output_path,
-        input_dim=args.input_dim,
-        opset_version=args.opset_version,
-    )
-
-
-if __name__ == "__main__":
-    main()
+# NOTE:
+# CLI usage for this functionality is provided by ``startup_success_predictor.cli``
+# via the Typer-based ``export-onnx`` command. This module is intentionally
+# free of ``argparse`` and top-level side effects so it can be imported safely
+# from other parts of the codebase.

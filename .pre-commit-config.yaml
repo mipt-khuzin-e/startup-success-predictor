@@ -6,7 +6,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ["--maxkb=1000"]
       - id: check-json
       - id: check-toml
       - id: check-merge-conflict
@@ -17,15 +17,41 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
+        files: ^startup_success_predictor/.*\.py$
       - id: ruff-format
+        files: ^startup_success_predictor/.*\.py$
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        language_version: python3.12
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort (python)
+        args: ["--profile=black"]
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        files: '\.(md|yaml|yml|json)$'
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.7.1
     hooks:
       - id: mypy
+        files: ^startup_success_predictor/.*\.py$
         additional_dependencies:
           - types-requests
           - pydantic
-        args: [--ignore-missing-imports]
-
-
+          - torch
+          - lightning
+          - polars
+          - fastapi
+          - hydra-core
+          - mlflow
+        args: [--ignore-missing-imports, --no-strict-optional]

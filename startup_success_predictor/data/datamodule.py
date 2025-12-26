@@ -31,6 +31,8 @@ class StartupDataModule(LightningDataModule):
         date_col: str = "founded_at",
         categorical_cols: list[str] | None = None,
         random_seed: int = 30,
+        handle_missing: str = "drop",
+        encoding_method: str = "label",
     ) -> None:
         """
         Initialize StartupDataModule.
@@ -56,6 +58,8 @@ class StartupDataModule(LightningDataModule):
         self.date_col = date_col
         self.categorical_cols = categorical_cols or []
         self.random_seed = random_seed
+        self.handle_missing = handle_missing
+        self.encoding_method = encoding_method
 
         # Will be set during setup
         self.train_dataset: Dataset[Any] | None = None
@@ -84,8 +88,8 @@ class StartupDataModule(LightningDataModule):
         # Load data
         df = pl.read_csv(self.data_path)
 
-        # Handle missing values
-        df = handle_missing_values(df, strategy="drop")
+        # Handle missing values according to configuration
+        df = handle_missing_values(df, strategy=self.handle_missing)
 
         # Create binary target: 1 for success (acquired, ipo, operating), 0 for closed
         # This depends on the actual dataset structure
@@ -101,7 +105,9 @@ class StartupDataModule(LightningDataModule):
             raise ValueError(f"Target column '{self.target_col}' not found in data")
 
         # Temporal split
-        train_df, val_df, test_df = temporal_split(df, self.date_col, self.train_end, self.val_end)
+        train_df, val_df, test_df = temporal_split(
+            df, self.date_col, self.train_end, self.val_end
+        )
 
         # Get feature columns (exclude target, date, and non-numeric)
         exclude_cols = {self.target_col, "target", self.date_col}
@@ -119,37 +125,44 @@ class StartupDataModule(LightningDataModule):
         # Encode categorical variables (on training data)
         if self.categorical_cols:
             train_df, self.encoding_meta = encode_categorical(
-                train_df, self.categorical_cols, method="label"
+                train_df, self.categorical_cols, method=self.encoding_method
             )
             # Apply same encoding to val and test
             for col in self.categorical_cols:
                 if self.encoding_meta["method"] == "label":
                     mapping = self.encoding_meta[col]["mapping"]
                     val_df = val_df.with_columns(
-                        pl.col(col).replace_strict(mapping, default=None).alias(col)
+                        pl.col(col).replace_strict(mapping, default=-1).alias(col)
                     )
                     test_df = test_df.with_columns(
-                        pl.col(col).replace_strict(mapping, default=None).alias(col)
+                        pl.col(col).replace_strict(mapping, default=-1).alias(col)
                     )
 
         # Normalize numerical features (fit on training data)
         if numerical_cols:
-            train_df, self.normalization_stats = normalize_features(train_df, numerical_cols)
-            val_df, _ = normalize_features(val_df, numerical_cols, self.normalization_stats)
-            test_df, _ = normalize_features(test_df, numerical_cols, self.normalization_stats)
+            train_df, self.normalization_stats = normalize_features(
+                train_df, numerical_cols
+            )
+            val_df, _ = normalize_features(
+                val_df, numerical_cols, self.normalization_stats
+            )
+            test_df, _ = normalize_features(
+                test_df, numerical_cols, self.normalization_stats
+            )
 
         # Store feature columns
         self.feature_cols = numerical_cols + self.categorical_cols
 
         # Convert to tensors
         X_train = polars_to_tensor(train_df, self.feature_cols)
-        y_train = polars_to_tensor(train_df, ["target"]).squeeze()
+        # Squeeze only the last dimension to keep batch dimension even for small datasets
+        y_train = polars_to_tensor(train_df, ["target"]).squeeze(-1)
 
         X_val = polars_to_tensor(val_df, self.feature_cols)
-        y_val = polars_to_tensor(val_df, ["target"]).squeeze()
+        y_val = polars_to_tensor(val_df, ["target"]).squeeze(-1)
 
         X_test = polars_to_tensor(test_df, self.feature_cols)
-        y_test = polars_to_tensor(test_df, ["target"]).squeeze()
+        y_test = polars_to_tensor(test_df, ["target"]).squeeze(-1)
 
         # Create datasets
         self.train_dataset = TensorDataset(X_train, y_train)
@@ -202,6 +215,6 @@ class StartupDataModule(LightningDataModule):
         if self.train_dataset is None:
             raise RuntimeError("train_dataset is None. Call setup() first.")
 
-        X_train, y_train = self.train_dataset.tensors
+        X_train, y_train = self.train_dataset.tensors  # type: ignore[attr-defined]
         minority_mask = y_train == 1
         return X_train[minority_mask], y_train[minority_mask]

@@ -1,5 +1,5 @@
 # Data configuration
-data_file: investments_VC.csv  # Main data file name
+data_file: big_startup_secsees_dataset.csv # Main data file name (from Kaggle download)
 
 # DataModule parameters
 batch_size: 128
@@ -13,14 +13,12 @@ val_end: "2018-01-01"
 target_col: status
 date_col: founded_at
 
-# Categorical columns (to be determined from actual dataset)
+# Categorical columns (taken from big_startup_secsees_dataset.csv header)
 categorical_cols:
-  - category_code
+  - category_list
   - country_code
   - state_code
 
 # Feature engineering
-handle_missing: drop  # Options: drop, mean, median, fill
-encoding_method: label  # Options: label, onehot
-
-
+handle_missing: drop # Options: drop, mean, median, fill
+encoding_method: label # Options: label, onehot

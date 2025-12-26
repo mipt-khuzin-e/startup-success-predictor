@@ -1,12 +1,14 @@
 """Download and manage startup investment data from Kaggle."""
 
+import logging
 import os
 from pathlib import Path
 
 import polars as pl
-from kaggle.api.kaggle_api_extended import KaggleApi
 
 from startup_success_predictor.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def setup_kaggle_credentials() -> None:
@@ -34,6 +36,10 @@ def download_startup_data(output_dir: Path | None = None) -> None:
     # Setup credentials
     setup_kaggle_credentials()
 
+    # Import Kaggle API lazily so that simply importing this module does not
+    # require Kaggle credentials to be configured.
+    from kaggle.api.kaggle_api_extended import KaggleApi
+
     # Initialize Kaggle API
     api = KaggleApi()
     api.authenticate()
@@ -42,9 +48,9 @@ def download_startup_data(output_dir: Path | None = None) -> None:
     # Dataset: https://www.kaggle.com/datasets/yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase
     dataset_slug = "yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase"
 
-    print(f"Downloading dataset: {dataset_slug}")
+    logger.info("Downloading dataset: %s", dataset_slug)
     api.dataset_download_files(dataset_slug, path=str(output_dir), unzip=True)
-    print(f"Dataset downloaded to: {output_dir}")
+    logger.info("Dataset downloaded to: %s", output_dir)
 
 
 def validate_data(data_dir: Path | None = None) -> bool:
@@ -64,13 +70,15 @@ def validate_data(data_dir: Path | None = None) -> bool:
     # Check for CSV files
     csv_files = list(data_dir.glob("*.csv"))
     if not csv_files:
-        print(f"No CSV files found in {data_dir}")
+        logger.warning("No CSV files found in %s", data_dir)
         return False
 
-    print(f"Found {len(csv_files)} CSV files:")
+    logger.info("Found %d CSV files:", len(csv_files))
     for csv_file in csv_files:
         df = pl.read_csv(csv_file)
-        print(f"  - {csv_file.name}: {df.shape[0]} rows, {df.shape[1]} columns")
+        logger.info(
+            "  - %s: %d rows, %d columns", csv_file.name, df.shape[0], df.shape[1]
+        )
 
     return True
 
@@ -79,19 +87,19 @@ def main() -> None:
     """Main entry point for data download."""
     settings = get_settings()
 
-    print("Starting data download...")
+    logger.info("Starting data download...")
     download_startup_data()
 
-    print("\nValidating downloaded data...")
+    logger.info("Validating downloaded data...")
     if validate_data():
-        print("Data validation successful!")
+        logger.info("Data validation successful!")
     else:
-        print("Data validation failed!")
+        logger.error("Data validation failed!")
         raise RuntimeError("Data validation failed")
 
-    print("\nNext steps:")
-    print(f"1. Add data to DVC: dvc add {settings.raw_data_dir}")
-    print(f"2. Commit changes: git add {settings.raw_data_dir}.dvc .gitignore")
+    logger.info("Next steps:")
+    logger.info("1. Add data to DVC: dvc add %s", settings.raw_data_dir)
+    logger.info("2. Commit changes: git add %s.dvc .gitignore", settings.raw_data_dir)
 
 
 if __name__ == "__main__":

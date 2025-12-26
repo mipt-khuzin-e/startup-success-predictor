@@ -96,7 +96,9 @@ class WGANGPModule(LightningModule):
         Returns:
             Generated samples of shape (batch_size, input_dim)
         """
-        return self.generator(z)
+        out = self.generator(z)
+        assert isinstance(out, Tensor)
+        return out
 
     @override
     def training_step(self, batch: tuple[Tensor, Tensor], batch_idx: int) -> None:
@@ -111,7 +113,8 @@ class WGANGPModule(LightningModule):
         batch_size = real_samples.size(0)
 
         # Get optimizers
-        opt_g, opt_c = self.optimizers()  # type: ignore[misc]
+        optimizers = self.optimizers()
+        opt_g, opt_c = optimizers  # type: ignore[attr-defined]
 
         # Train Critic
         for _ in range(self.n_critic):
@@ -126,11 +129,15 @@ class WGANGPModule(LightningModule):
             fake_validity = self.critic(fake_samples)
 
             # Gradient penalty
-            gp = compute_gradient_penalty(self.critic, real_samples, fake_samples, self.device)
+            gp = compute_gradient_penalty(
+                self.critic, real_samples, fake_samples, self.device
+            )
 
             # Critic loss (Wasserstein loss with gradient penalty)
             critic_loss = (
-                -torch.mean(real_validity) + torch.mean(fake_validity) + self.lambda_gp * gp
+                -torch.mean(real_validity)
+                + torch.mean(fake_validity)
+                + self.lambda_gp * gp
             )
 
             self.manual_backward(critic_loss)
@@ -189,4 +196,5 @@ class WGANGPModule(LightningModule):
         with torch.no_grad():
             z = torch.randn(n_samples, self.latent_dim, device=self.device)
             samples = self.generator(z)
+            assert isinstance(samples, Tensor)
         return samples

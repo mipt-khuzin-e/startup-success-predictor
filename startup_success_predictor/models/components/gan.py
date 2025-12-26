@@ -60,7 +60,9 @@ class Generator(nn.Module):
         Returns:
             Generated samples of shape (batch_size, output_dim)
         """
-        return self.model(z)
+        out = self.model(z)
+        assert isinstance(out, Tensor)
+        return out
 
 
 class Critic(nn.Module):
@@ -111,7 +113,9 @@ class Critic(nn.Module):
         Returns:
             Critic scores of shape (batch_size, 1)
         """
-        return self.model(x)
+        out = self.model(x)
+        assert isinstance(out, Tensor)
+        return out
 
 
 def compute_gradient_penalty(
@@ -160,5 +164,6 @@ def compute_gradient_penalty(
 
     # Compute gradient penalty
     gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    assert isinstance(gradient_penalty, Tensor)
 
     return gradient_penalty

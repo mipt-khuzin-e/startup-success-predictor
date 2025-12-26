@@ -52,6 +52,7 @@ mipt-2025-mlops/
 ## Key Features Implemented
 
 ### 1. Environment & Tools
+
 - ✅ Python 3.12 with modern syntax (type aliases, override decorator)
 - ✅ UV for fast package management
 - ✅ Ruff for linting and formatting
@@ -60,6 +61,7 @@ mipt-2025-mlops/
 - ✅ Pydantic Settings for configuration management
 
 ### 2. Data Pipeline
+
 - ✅ Kaggle API integration for data download
 - ✅ DVC for data versioning
 - ✅ Polars for high-performance data processing
@@ -68,6 +70,7 @@ mipt-2025-mlops/
 - ✅ PyTorch Lightning DataModule
 
 ### 3. Models
+
 - ✅ WGAN-GP implementation with Gradient Penalty
   - Generator: MLP with BatchNorm
   - Critic: MLP with Dropout
@@ -77,6 +80,7 @@ mipt-2025-mlops/
   - Class imbalance handling (pos_weight)
 
 ### 4. Training Pipeline
+
 - ✅ Two-stage training:
   1. Train WGAN-GP on minority class
   2. Generate synthetic data
@@ -87,6 +91,7 @@ mipt-2025-mlops/
 - ✅ Early stopping and model checkpointing
 
 ### 5. Production
+
 - ✅ ONNX export for model deployment
 - ✅ TensorRT conversion script (GPU optimization)
 - ✅ FastAPI REST API with:
@@ -97,6 +102,7 @@ mipt-2025-mlops/
 - ✅ Docker Compose with MLFlow
 
 ### 6. Code Quality
+
 - ✅ Type hints throughout (mypy strict mode)
 - ✅ Docstrings for all functions/classes
 - ✅ Ruff linting (passes all checks)
@@ -104,25 +110,26 @@ mipt-2025-mlops/
 
 ## Technology Stack
 
-| Category | Technology |
-|----------|-----------|
-| Language | Python 3.12 |
-| Package Manager | uv |
-| Data Processing | Polars, PyArrow |
-| ML Framework | PyTorch, PyTorch Lightning |
-| Configuration | Hydra |
-| Experiment Tracking | MLFlow |
-| Data Versioning | DVC |
-| Linting/Formatting | Ruff |
-| Type Checking | Mypy |
-| API Framework | FastAPI |
-| Model Format | ONNX, TensorRT |
-| Containerization | Docker, Docker Compose |
-| Metrics | TorchMetrics |
+| Category            | Technology                 |
+| ------------------- | -------------------------- |
+| Language            | Python 3.12                |
+| Package Manager     | uv                         |
+| Data Processing     | Polars, PyArrow            |
+| ML Framework        | PyTorch, PyTorch Lightning |
+| Configuration       | Hydra                      |
+| Experiment Tracking | MLFlow                     |
+| Data Versioning     | DVC                        |
+| Linting/Formatting  | Ruff                       |
+| Type Checking       | Mypy                       |
+| API Framework       | FastAPI                    |
+| Model Format        | ONNX, TensorRT             |
+| Containerization    | Docker, Docker Compose     |
+| Metrics             | TorchMetrics               |
 
 ## Usage
 
 ### Setup
+
 ```bash
 # Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -140,27 +147,28 @@ cp env.example .env
 # Edit .env with your credentials
 ```
 
-### Data Download
+### Data Download (DVC)
+
 ```bash
-python -m startup_success_predictor.data.download
-dvc add data/raw
-git add data/raw.dvc .gitignore
-git commit -m "Add raw data"
+# Run the DVC-managed download stage to populate data/raw
+dvc repro download
 ```
 
 ### Training
+
 ```bash
 # Start MLFlow server (in separate terminal)
 mlflow server --host 127.0.0.1 --port 8080
 
-# Train models
-python -m startup_success_predictor.train
+# Train models via Typer CLI
+python -m startup_success_predictor.cli train
 ```
 
 ### Export & Deployment
+
 ```bash
 # Export to ONNX
-python -m startup_success_predictor.export_onnx \
+python -m startup_success_predictor.cli export-onnx \
     --checkpoint models/classifier/best.ckpt \
     --input-dim <feature_count>
 
@@ -193,4 +201,3 @@ docker-compose up -d
 - Pre-commit hooks ensure code quality
 - Docker ready for deployment
 - Comprehensive documentation in README.md
-

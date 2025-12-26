@@ -49,16 +49,14 @@ if ! command -v trtexec &> /dev/null; then
 fi
 
 # Convert to TensorRT
+# Note: we rely on the shapes embedded in the ONNX model and use explicit batch.
+# If you need custom shapes, adjust the trtexec invocation accordingly.
 trtexec \
     --onnx="$ONNX_MODEL" \
     --saveEngine="$TRT_ENGINE" \
     --explicitBatch \
-    --minShapes=input:1x$(onnxruntime_shape_inference "$ONNX_MODEL") \
-    --optShapes=input:${BATCH_SIZE}x$(onnxruntime_shape_inference "$ONNX_MODEL") \
-    --maxShapes=input:${BATCH_SIZE}x$(onnxruntime_shape_inference "$ONNX_MODEL") \
     --workspace=$WORKSPACE \
     --fp16
 
 echo "Conversion completed successfully!"
 echo "TensorRT engine saved to: $TRT_ENGINE"
-

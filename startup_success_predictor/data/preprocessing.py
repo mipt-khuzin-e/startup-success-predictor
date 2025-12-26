@@ -1,5 +1,6 @@
 """Data preprocessing utilities using Polars."""
 
+from datetime import date
 from typing import Any
 
 import polars as pl
@@ -73,9 +74,19 @@ def normalize_features(
         for col in feature_cols:
             mean = df[col].mean()
             std = df[col].std()
+
+            if isinstance(mean, int | float):
+                safe_mean = float(mean)
+            else:
+                safe_mean = 0.0
+
+            if isinstance(std, int | float) and std > 0:
+                safe_std = float(std)
+            else:
+                safe_std = 1.0
             stats[col] = {
-                "mean": mean if mean is not None else 0.0,
-                "std": std if std is not None and std > 0 else 1.0,
+                "mean": safe_mean,
+                "std": safe_std,
             }
 
     # Apply normalization
@@ -83,7 +94,9 @@ def normalize_features(
     for col in feature_cols:
         mean = stats[col]["mean"]
         std = stats[col]["std"]
-        df_normalized = df_normalized.with_columns(((pl.col(col) - mean) / std).alias(col))
+        df_normalized = df_normalized.with_columns(
+            ((pl.col(col) - mean) / std).alias(col)
+        )
 
     return df_normalized, stats
 
@@ -109,7 +122,7 @@ def handle_missing_values(
     elif strategy == "mean":
         return df.fill_null(strategy="mean")
     elif strategy == "median":
-        return df.fill_null(strategy="forward")  # Polars doesn't have median fill
+        return df.with_columns(pl.all().fill_null(pl.all().median()))
     elif strategy == "fill":
         if fill_value is None:
             raise ValueError("fill_value must be provided when strategy is 'fill'")
@@ -140,9 +153,15 @@ def temporal_split(
     if df[date_col].dtype != pl.Date and df[date_col].dtype != pl.Datetime:
         df = df.with_columns(pl.col(date_col).str.to_date())
 
-    train_df = df.filter(pl.col(date_col) < train_end)
-    val_df = df.filter((pl.col(date_col) >= train_end) & (pl.col(date_col) < val_end))
-    test_df = df.filter(pl.col(date_col) >= val_end)
+    # Convert string boundaries to native date objects for safe comparison
+    train_end_date = date.fromisoformat(train_end)
+    val_end_date = date.fromisoformat(val_end)
+
+    train_df = df.filter(pl.col(date_col) < train_end_date)
+    val_df = df.filter(
+        (pl.col(date_col) >= train_end_date) & (pl.col(date_col) < val_end_date)
+    )
+    test_df = df.filter(pl.col(date_col) >= val_end_date)
 
     return train_df, val_df, test_df
 

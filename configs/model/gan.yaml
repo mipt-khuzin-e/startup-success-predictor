@@ -17,14 +17,12 @@ critic:
 
 # Training
 training:
-  n_critic: 5  # Number of critic updates per generator update
-  lambda_gp: 10.0  # Gradient penalty coefficient
+  n_critic: 5 # Number of critic updates per generator update
+  lambda_gp: 10.0 # Gradient penalty coefficient
   learning_rate: 0.0001
   beta1: 0.5
   beta2: 0.999
 
 # Generation
 generation:
-  n_samples: 5000  # Number of synthetic samples to generate
-
-
+  n_samples: 5000 # Number of synthetic samples to generate

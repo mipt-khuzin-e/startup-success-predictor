@@ -61,4 +61,6 @@ class MLPClassifier(nn.Module):
         Returns:
             Logits of shape (batch_size, output_dim)
         """
-        return self.model(x)
+        out = self.model(x)
+        assert isinstance(out, Tensor)
+        return out

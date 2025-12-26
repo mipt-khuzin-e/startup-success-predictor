@@ -112,7 +112,9 @@ class ClassifierModule(LightningModule):
         Returns:
             Logits of shape (batch_size, 1)
         """
-        return self.model(x)
+        out = self.model(x)
+        assert isinstance(out, Tensor)
+        return out
 
     @override
     def training_step(self, batch: tuple[Tensor, Tensor], batch_idx: int) -> Tensor:
@@ -127,7 +129,8 @@ class ClassifierModule(LightningModule):
             Loss value
         """
         x, y = batch
-        logits = self(x).squeeze()
+        # Squeeze only the last dimension so batch size 1 still yields shape (1,)
+        logits = self(x).squeeze(-1)
         loss = self.criterion(logits, y)
 
         # Compute metrics
@@ -148,6 +151,7 @@ class ClassifierModule(LightningModule):
         self.log("train_recall", self.train_recall, prog_bar=False)
         self.log("train_accuracy", self.train_accuracy, prog_bar=False)
 
+        assert isinstance(loss, Tensor)
         return loss
 
     @override
@@ -160,7 +164,8 @@ class ClassifierModule(LightningModule):
             batch_idx: Batch index
         """
         x, y = batch
-        logits = self(x).squeeze()
+        # Squeeze only the last dimension so batch size 1 still yields shape (1,)
+        logits = self(x).squeeze(-1)
         loss = self.criterion(logits, y)
 
         # Compute metrics
@@ -191,7 +196,8 @@ class ClassifierModule(LightningModule):
             batch_idx: Batch index
         """
         x, y = batch
-        logits = self(x).squeeze()
+        # Squeeze only the last dimension so batch size 1 still yields shape (1,)
+        logits = self(x).squeeze(-1)
         loss = self.criterion(logits, y)
 
         # Compute metrics
