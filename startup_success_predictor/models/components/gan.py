@@ -18,16 +18,7 @@ class Generator(nn.Module):
         leaky_relu_slope: float = 0.2,
         use_batch_norm: bool = True,
     ) -> None:
-        """
-        Initialize Generator.
-
-        Args:
-            latent_dim: Dimension of latent space
-            output_dim: Dimension of output (number of features)
-            hidden_dims: List of hidden layer dimensions
-            leaky_relu_slope: Slope for LeakyReLU activation
-            use_batch_norm: Whether to use batch normalization
-        """
+        """Initialize Generator network."""
         super().__init__()
         self.latent_dim = latent_dim
         self.output_dim = output_dim
@@ -51,15 +42,7 @@ class Generator(nn.Module):
 
     @override
     def forward(self, z: Tensor) -> Tensor:
-        """
-        Forward pass.
-
-        Args:
-            z: Latent vector of shape (batch_size, latent_dim)
-
-        Returns:
-            Generated samples of shape (batch_size, output_dim)
-        """
+        """Generate samples from latent vectors."""
         out = self.model(z)
         assert isinstance(out, Tensor)
         return out
@@ -75,15 +58,7 @@ class Critic(nn.Module):
         leaky_relu_slope: float = 0.2,
         dropout: float = 0.3,
     ) -> None:
-        """
-        Initialize Critic.
-
-        Args:
-            input_dim: Dimension of input features
-            hidden_dims: List of hidden layer dimensions
-            leaky_relu_slope: Slope for LeakyReLU activation
-            dropout: Dropout probability
-        """
+        """Initialize Critic network."""
         super().__init__()
         self.input_dim = input_dim
 
@@ -104,15 +79,7 @@ class Critic(nn.Module):
 
     @override
     def forward(self, x: Tensor) -> Tensor:
-        """
-        Forward pass.
-
-        Args:
-            x: Input features of shape (batch_size, input_dim)
-
-        Returns:
-            Critic scores of shape (batch_size, 1)
-        """
+        """Score samples with critic."""
         out = self.model(x)
         assert isinstance(out, Tensor)
         return out
@@ -124,18 +91,7 @@ def compute_gradient_penalty(
     fake_samples: Tensor,
     device: torch.device,
 ) -> Tensor:
-    """
-    Compute gradient penalty for WGAN-GP.
-
-    Args:
-        critic: Critic network
-        real_samples: Real data samples
-        fake_samples: Generated fake samples
-        device: Device to run computation on
-
-    Returns:
-        Gradient penalty value
-    """
+    """Compute gradient penalty for WGAN-GP."""
     batch_size = real_samples.size(0)
 
     # Random weight for interpolation

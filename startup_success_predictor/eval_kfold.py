@@ -26,27 +26,30 @@ from torch.utils.data import DataLoader, TensorDataset
 from torchmetrics import AUROC, F1Score, Precision, Recall
 from torchmetrics.classification import BinaryAveragePrecision
 
-from startup_success_predictor.config import get_settings
 from startup_success_predictor.data.datamodule import StartupDataModule
+from startup_success_predictor.data.download import resolve_data_path
 from startup_success_predictor.models.classifier_module import ClassifierModule
 from startup_success_predictor.utils.metrics import precision_at_k
 
 logger = logging.getLogger(__name__)
 
 
+def _split_class(idxs: np.ndarray, n_splits: int) -> list[np.ndarray]:
+    """Split class indices into K folds."""
+    folds: list[np.ndarray] = []
+    fold_sizes = np.full(n_splits, len(idxs) // n_splits, dtype=int)
+    fold_sizes[: len(idxs) % n_splits] += 1
+    current = 0
+    for fold_size in fold_sizes:
+        folds.append(idxs[current : current + fold_size])
+        current += fold_size
+    return folds
+
+
 def _stratified_kfold_indices(
     y: np.ndarray, n_splits: int, random_seed: int
 ) -> list[tuple[np.ndarray, np.ndarray]]:
-    """Create stratified K-fold indices for binary labels.
-
-    Args:
-        y: Array of binary labels (0 or 1).
-        n_splits: Number of folds.
-        random_seed: Random seed for shuffling.
-
-    Returns:
-        List of (train_idx, val_idx) pairs for each fold.
-    """
+    """Create stratified K-fold indices for binary labels."""
     if n_splits < 2:
         msg = "n_splits must be at least 2"
         raise ValueError(msg)
@@ -61,18 +64,8 @@ def _stratified_kfold_indices(
     rng.shuffle(indices_pos)
     rng.shuffle(indices_neg)
 
-    def _split_class(idxs: np.ndarray) -> list[np.ndarray]:
-        folds: list[np.ndarray] = []
-        fold_sizes = np.full(n_splits, len(idxs) // n_splits, dtype=int)
-        fold_sizes[: len(idxs) % n_splits] += 1
-        current = 0
-        for fold_size in fold_sizes:
-            folds.append(idxs[current : current + fold_size])
-            current += fold_size
-        return folds
-
-    pos_folds = _split_class(indices_pos)
-    neg_folds = _split_class(indices_neg)
+    pos_folds = _split_class(indices_pos, n_splits)
+    neg_folds = _split_class(indices_neg, n_splits)
 
     folds: list[tuple[np.ndarray, np.ndarray]] = []
     for fold_idx in range(n_splits):
@@ -160,7 +153,7 @@ def _evaluate_fold(
 
 
 def _aggregate_metrics(
-    metrics_per_fold: list[dict[str, float]]
+    metrics_per_fold: list[dict[str, float]],
 ) -> dict[str, tuple[float, float]]:
     """Compute mean and std for each metric over folds."""
     keys = metrics_per_fold[0].keys()
@@ -184,44 +177,22 @@ def main(cfg: DictConfig) -> None:
     logging.basicConfig(level=logging.INFO)
     logger.info("Starting stratified 5-fold evaluation")
 
-    settings = get_settings()
-    data_path = settings.raw_data_dir / cfg.data.data_file
-    if not data_path.exists():
-        # Fallback: first CSV in raw_data_dir
-        csv_files = list(settings.raw_data_dir.glob("*.csv"))
-        if not csv_files:
-            msg = f"No data file found in {settings.raw_data_dir}"
-            raise FileNotFoundError(msg)
-        data_path = csv_files[0]
-        logger.info("Using data file: %s", data_path)
-
     # Reuse existing DataModule to ensure identical preprocessing
-    datamodule = StartupDataModule(
-        data_path=data_path,
-        batch_size=cfg.data.batch_size,
-        num_workers=cfg.data.num_workers,
-        train_end=cfg.data.train_end,
-        val_end=cfg.data.val_end,
-        target_col=cfg.data.target_col,
-        date_col=cfg.data.date_col,
-        categorical_cols=cfg.data.categorical_cols,
-        random_seed=cfg.seed,
-        handle_missing=cfg.data.handle_missing,
-        encoding_method=cfg.data.encoding_method,
-    )
+    data_path = resolve_data_path(cfg)
+    datamodule = StartupDataModule.from_hydra_config(cfg, data_path)
 
     datamodule.setup()
     if datamodule.train_dataset is None:
         msg = "train_dataset is None after setup()"
         raise RuntimeError(msg)
 
-    X_all, y_all = datamodule.train_dataset.tensors  # type: ignore[attr-defined]
-    y_np = y_all.cpu().numpy()
+    features_all, labels_all = datamodule.train_dataset.tensors  # type: ignore[attr-defined]
+    labels_np = labels_all.cpu().numpy()
 
     n_splits = 5
-    folds = _stratified_kfold_indices(y_np, n_splits=n_splits, random_seed=cfg.seed)
+    folds = _stratified_kfold_indices(labels_np, n_splits=n_splits, random_seed=cfg.seed)
 
-    input_dim = X_all.shape[1]
+    input_dim = features_all.shape[1]
     metrics_per_fold: list[dict[str, float]] = []
 
     for fold_idx, (train_idx, val_idx) in enumerate(folds):
@@ -233,13 +204,13 @@ def main(cfg: DictConfig) -> None:
             len(val_idx),
         )
 
-        X_train = X_all[train_idx]
-        y_train = y_all[train_idx]
-        X_val = X_all[val_idx]
-        y_val = y_all[val_idx]
+        features_train = features_all[train_idx]
+        labels_train = labels_all[train_idx]
+        features_val = features_all[val_idx]
+        labels_val = labels_all[val_idx]
 
-        train_dataset = TensorDataset(X_train, y_train)
-        val_dataset = TensorDataset(X_val, y_val)
+        train_dataset = TensorDataset(features_train, labels_train)
+        val_dataset = TensorDataset(features_val, labels_val)
 
         train_loader: DataLoader[Any] = DataLoader(
             train_dataset,

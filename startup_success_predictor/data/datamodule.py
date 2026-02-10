@@ -1,12 +1,17 @@
 """PyTorch Lightning DataModule for startup data using Polars."""
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import polars as pl
 import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, TensorDataset
+
+if TYPE_CHECKING:
+    from omegaconf import DictConfig
 
 from startup_success_predictor.data.preprocessing import (
     encode_categorical,
@@ -71,6 +76,23 @@ class StartupDataModule(LightningDataModule):
 
         # Set random seed
         torch.manual_seed(random_seed)
+
+    @classmethod
+    def from_hydra_config(cls, cfg: DictConfig, data_path: Path) -> StartupDataModule:
+        """Create a StartupDataModule from Hydra config and resolved data path."""
+        return cls(
+            data_path=data_path,
+            batch_size=cfg.data.batch_size,
+            num_workers=cfg.data.num_workers,
+            train_end=cfg.data.train_end,
+            val_end=cfg.data.val_end,
+            target_col=cfg.data.target_col,
+            date_col=cfg.data.date_col,
+            categorical_cols=cfg.data.categorical_cols,
+            random_seed=cfg.seed,
+            handle_missing=cfg.data.handle_missing,
+            encoding_method=cfg.data.encoding_method,
+        )
 
     def prepare_data(self) -> None:
         """Download data if needed (called only on 1 GPU/TPU)."""
@@ -154,55 +176,55 @@ class StartupDataModule(LightningDataModule):
         self.feature_cols = numerical_cols + self.categorical_cols
 
         # Convert to tensors
-        X_train = polars_to_tensor(train_df, self.feature_cols)
+        features_train = polars_to_tensor(train_df, self.feature_cols)
         # Squeeze only the last dimension to keep batch dimension even for small datasets
-        y_train = polars_to_tensor(train_df, ["target"]).squeeze(-1)
+        labels_train = polars_to_tensor(train_df, ["target"]).squeeze(-1)
 
-        X_val = polars_to_tensor(val_df, self.feature_cols)
-        y_val = polars_to_tensor(val_df, ["target"]).squeeze(-1)
+        features_val = polars_to_tensor(val_df, self.feature_cols)
+        labels_val = polars_to_tensor(val_df, ["target"]).squeeze(-1)
 
-        X_test = polars_to_tensor(test_df, self.feature_cols)
-        y_test = polars_to_tensor(test_df, ["target"]).squeeze(-1)
+        features_test = polars_to_tensor(test_df, self.feature_cols)
+        labels_test = polars_to_tensor(test_df, ["target"]).squeeze(-1)
 
         # Create datasets
-        self.train_dataset = TensorDataset(X_train, y_train)
-        self.val_dataset = TensorDataset(X_val, y_val)
-        self.test_dataset = TensorDataset(X_test, y_test)
+        self.train_dataset = TensorDataset(features_train, labels_train)
+        self.val_dataset = TensorDataset(features_val, labels_val)
+        self.test_dataset = TensorDataset(features_test, labels_test)
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Return training DataLoader."""
         if self.train_dataset is None:
-            raise RuntimeError("train_dataset is None. Call setup() first.")
+            raise RuntimeError("Dataset is None. Call setup() first.")
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
-            persistent_workers=True if self.num_workers > 0 else False,
+            persistent_workers=self.num_workers > 0,
         )
 
     def val_dataloader(self) -> DataLoader[Any]:
         """Return validation DataLoader."""
         if self.val_dataset is None:
-            raise RuntimeError("val_dataset is None. Call setup() first.")
+            raise RuntimeError("Dataset is None. Call setup() first.")
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            persistent_workers=True if self.num_workers > 0 else False,
+            persistent_workers=self.num_workers > 0,
         )
 
     def test_dataloader(self) -> DataLoader[Any]:
         """Return test DataLoader."""
         if self.test_dataset is None:
-            raise RuntimeError("test_dataset is None. Call setup() first.")
+            raise RuntimeError("Dataset is None. Call setup() first.")
         return DataLoader(
             self.test_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            persistent_workers=True if self.num_workers > 0 else False,
+            persistent_workers=self.num_workers > 0,
         )
 
     def get_minority_class_data(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -215,6 +237,6 @@ class StartupDataModule(LightningDataModule):
         if self.train_dataset is None:
             raise RuntimeError("train_dataset is None. Call setup() first.")
 
-        X_train, y_train = self.train_dataset.tensors  # type: ignore[attr-defined]
-        minority_mask = y_train == 1
-        return X_train[minority_mask], y_train[minority_mask]
+        features_train, labels_train = self.train_dataset.tensors  # type: ignore[attr-defined]
+        minority_mask = labels_train == 1
+        return features_train[minority_mask], labels_train[minority_mask]

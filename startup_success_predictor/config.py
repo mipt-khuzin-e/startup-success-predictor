@@ -1,5 +1,6 @@
 """Configuration management using Pydantic Settings."""
 
+from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -34,11 +35,7 @@ class Settings(BaseSettings):
     plots_dir: Path = project_root / "plots"
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Get application settings.
-
-    Note:
-        Pydantic ``BaseSettings`` reads values from environment and can raise
-        validation errors at runtime.
-    """
+    """Get cached application settings."""
     return Settings()

@@ -18,10 +18,29 @@ paths:
 
 # MLFlow
 mlflow:
-  # По умолчанию пишем логи в локальную директорию mlruns
-  tracking_uri: file:mlruns
+  tracking_uri: http://127.0.0.1:8080
   experiment_name: startup-success-predictor
   run_name: null # Auto-generated if null
+
+# GAN model configuration (used when train.two_stage.train_gan_first is true)
+gan:
+  generator:
+    latent_dim: 100
+    hidden_dims: [256, 128]
+    leaky_relu_slope: 0.2
+    use_batch_norm: true
+  critic:
+    hidden_dims: [128, 64]
+    leaky_relu_slope: 0.2
+    dropout: 0.3
+  training:
+    n_critic: 5
+    lambda_gp: 10.0
+    learning_rate: 0.0001
+    beta1: 0.5
+    beta2: 0.999
+  generation:
+    n_samples: 5000
 
 # Logging
 logging:

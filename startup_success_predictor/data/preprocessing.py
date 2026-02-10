@@ -13,17 +13,7 @@ def encode_categorical(
     categorical_cols: list[str],
     method: str = "onehot",
 ) -> tuple[pl.DataFrame, dict[str, Any]]:
-    """
-    Encode categorical variables.
-
-    Args:
-        df: Input DataFrame
-        categorical_cols: List of categorical column names
-        method: Encoding method ('onehot' or 'label')
-
-    Returns:
-        Tuple of (encoded DataFrame, encoding metadata)
-    """
+    """Encode categorical variables using onehot or label encoding."""
     encoding_meta: dict[str, Any] = {}
 
     if method == "onehot":
@@ -57,17 +47,7 @@ def normalize_features(
     feature_cols: list[str],
     stats: dict[str, dict[str, float]] | None = None,
 ) -> tuple[pl.DataFrame, dict[str, dict[str, float]]]:
-    """
-    Normalize numerical features using Z-score normalization.
-
-    Args:
-        df: Input DataFrame
-        feature_cols: List of feature column names
-        stats: Pre-computed statistics (mean, std). If None, compute from data.
-
-    Returns:
-        Tuple of (normalized DataFrame, statistics dict)
-    """
+    """Normalize numerical features using Z-score normalization."""
     if stats is None:
         # Compute statistics
         stats = {}
@@ -106,17 +86,7 @@ def handle_missing_values(
     strategy: str = "drop",
     fill_value: float | None = None,
 ) -> pl.DataFrame:
-    """
-    Handle missing values in DataFrame.
-
-    Args:
-        df: Input DataFrame
-        strategy: Strategy for handling missing values ('drop', 'mean', 'median', 'fill')
-        fill_value: Value to fill if strategy is 'fill'
-
-    Returns:
-        DataFrame with missing values handled
-    """
+    """Handle missing values using drop, mean, median, or fill strategy."""
     if strategy == "drop":
         return df.drop_nulls()
     elif strategy == "mean":
@@ -137,18 +107,7 @@ def temporal_split(
     train_end: str,
     val_end: str,
 ) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
-    """
-    Split data temporally into train, validation, and test sets.
-
-    Args:
-        df: Input DataFrame
-        date_col: Name of date column
-        train_end: End date for training set (exclusive)
-        val_end: End date for validation set (exclusive)
-
-    Returns:
-        Tuple of (train_df, val_df, test_df)
-    """
+    """Split data temporally into train, validation, and test sets."""
     # Ensure date column is datetime
     if df[date_col].dtype != pl.Date and df[date_col].dtype != pl.Datetime:
         df = df.with_columns(pl.col(date_col).str.to_date())
@@ -166,19 +125,6 @@ def temporal_split(
     return train_df, val_df, test_df
 
 
-def polars_to_tensor(df: pl.DataFrame, columns: list[str] | None = None) -> Tensor:
-    """
-    Convert Polars DataFrame to PyTorch Tensor.
-
-    Args:
-        df: Input DataFrame
-        columns: List of columns to convert. If None, use all columns.
-
-    Returns:
-        PyTorch Tensor
-    """
-    if columns is not None:
-        df = df.select(columns)
-
-    # Convert to numpy then to tensor
-    return torch.from_numpy(df.to_numpy()).float()
+def polars_to_tensor(df: pl.DataFrame, columns: list[str]) -> Tensor:
+    """Convert Polars DataFrame to PyTorch Tensor."""
+    return torch.from_numpy(df.select(columns).to_numpy()).float()

@@ -143,11 +143,13 @@ cython_debug/
 /data/raw/
 /data/processed/
 /data/interim/
+/data/*.csv
 
 # Model artifacts
 *.pth
 *.ckpt
 *.onnx
+*.onnx.data
 *.engine
 *.plan
 
@@ -171,5 +173,5 @@ cython_debug/
 .DS_Store
 Thumbs.db
 
-# Plots
-/plots/
+# Plots (keep plots/ tracked, ignore only generated intermediates)
+/plots/*.tmp

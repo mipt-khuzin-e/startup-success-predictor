@@ -1,23 +1,18 @@
 """FastAPI application for startup success prediction."""
 
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import numpy as np
 import onnxruntime as ort
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from startup_success_predictor.config import get_settings
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="Startup Success Predictor API",
-    description="Predict startup success using WGAN-GP augmented classifier",
-    version="0.1.0",
-)
-
-# Global model session
-onnx_session: ort.InferenceSession | None = None
+logger = logging.getLogger(__name__)
 
 
 class StartupFeatures(BaseModel):
@@ -48,37 +43,63 @@ class PredictionResponse(BaseModel):
 
 
 def load_onnx_model(model_path: Path) -> ort.InferenceSession:
-    """
-    Load ONNX model.
-
-    Args:
-        model_path: Path to ONNX model
-
-    Returns:
-        ONNX Runtime inference session
-    """
-    print(f"Loading ONNX model from: {model_path}")
-    session = ort.InferenceSession(
-        str(model_path),
-        providers=["CPUExecutionProvider"],
-    )
-    print("Model loaded successfully!")
+    """Load ONNX model for CPU inference."""
+    logger.info("Loading ONNX model from: %s", model_path)
+    session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+    logger.info("Model loaded successfully!")
     return session
 
 
-@app.on_event("startup")
-async def startup_event() -> None:
-    """Load model on startup."""
-    global onnx_session
+def run_inference(
+    session: ort.InferenceSession, input_data: StartupFeatures
+) -> PredictionResponse:
+    """Run ONNX inference on a single sample and return prediction."""
+    all_features = {**input_data.features, **input_data.categorical}
+    feature_values = list(all_features.values())
+    input_array = np.array([feature_values], dtype=np.float32)
 
-    settings = get_settings()
-    model_path = settings.models_dir / "classifier.onnx"
+    input_name = session.get_inputs()[0].name
+    output_name = session.get_outputs()[0].name
+    logits = session.run([output_name], {input_name: input_array})[0]
+
+    probability = float(1 / (1 + np.exp(-logits[0][0])))
+    success = probability > 0.5
+
+    return PredictionResponse(success=success, probability=probability)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Load model on startup, clean up on shutdown."""
+    model_path = get_settings().models_dir / "classifier.onnx"
 
     if not model_path.exists():
-        print(f"Warning: Model not found at {model_path}")
-        print("API will start but predictions will fail until model is available.")
+        logger.warning("Model not found at %s", model_path)
+        logger.warning(
+            "API will start but predictions will fail until model is available."
+        )
     else:
-        onnx_session = load_onnx_model(model_path)
+        app.state.onnx_session = load_onnx_model(model_path)
+
+    yield
+
+
+app = FastAPI(
+    title="Startup Success Predictor API",
+    description="Predict startup success using WGAN-GP augmented classifier",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+
+def _get_session(request: Request) -> ort.InferenceSession:
+    """Get ONNX session from app state or raise 503."""
+    session: ort.InferenceSession | None = getattr(
+        request.app.state, "onnx_session", None
+    )
+    if session is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    return session
 
 
 @app.get("/")
@@ -92,9 +113,10 @@ async def root() -> dict[str, str]:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
+async def health(request: Request) -> dict[str, str]:
     """Health check endpoint."""
-    model_status = "loaded" if onnx_session is not None else "not_loaded"
+    session = getattr(request.app.state, "onnx_session", None)
+    model_status = "loaded" if session is not None else "not_loaded"
     return {
         "status": "healthy",
         "model_status": model_status,
@@ -102,87 +124,19 @@ async def health() -> dict[str, str]:
 
 
 @app.post("/predict", response_model=PredictionResponse)
-async def predict(input_data: StartupFeatures) -> PredictionResponse:
-    """
-    Predict startup success.
-
-    Args:
-        input_data: Input features
-
-    Returns:
-        Prediction response with success flag and probability
-    """
-    if onnx_session is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model not loaded. Please check server logs.",
-        )
-
-    try:
-        # Combine features and categorical
-        all_features = {**input_data.features, **input_data.categorical}
-
-        # Convert to numpy array (assuming features are in correct order)
-        # In production, you would need to ensure feature order matches training
-        feature_values = list(all_features.values())
-        input_array = np.array([feature_values], dtype=np.float32)
-
-        # Run inference
-        input_name = onnx_session.get_inputs()[0].name
-        output_name = onnx_session.get_outputs()[0].name
-
-        logits = onnx_session.run([output_name], {input_name: input_array})[0]
-
-        # Apply sigmoid to get probability
-        probability = float(1 / (1 + np.exp(-logits[0][0])))
-
-        # Determine success
-        success = probability > 0.5
-
-        return PredictionResponse(
-            success=success,
-            probability=probability,
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Prediction failed: {e!s}",
-        ) from e
+async def predict(input_data: StartupFeatures, request: Request) -> PredictionResponse:
+    """Predict startup success probability."""
+    session = _get_session(request)
+    return run_inference(session, input_data)
 
 
 @app.post("/predict_batch")
 async def predict_batch(
-    input_data: list[StartupFeatures],
+    input_data: list[StartupFeatures], request: Request
 ) -> list[PredictionResponse]:
-    """
-    Predict startup success for multiple samples.
-
-    Args:
-        input_data: List of input features
-
-    Returns:
-        List of prediction responses
-    """
-    if onnx_session is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model not loaded. Please check server logs.",
-        )
-
-    try:
-        results = []
-        for sample in input_data:
-            result = await predict(sample)
-            results.append(result)
-
-        return results
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Batch prediction failed: {e!s}",
-        ) from e
+    """Predict startup success for multiple samples."""
+    session = _get_session(request)
+    return [run_inference(session, sample) for sample in input_data]
 
 
 if __name__ == "__main__":

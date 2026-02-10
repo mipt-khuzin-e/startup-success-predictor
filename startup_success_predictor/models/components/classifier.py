@@ -18,17 +18,7 @@ class MLPClassifier(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.3,
     ) -> None:
-        """
-        Initialize MLPClassifier.
-
-        Args:
-            input_dim: Dimension of input features
-            hidden_dims: List of hidden layer dimensions
-            output_dim: Dimension of output (1 for binary classification)
-            leaky_relu_slope: Slope for LeakyReLU activation
-            use_batch_norm: Whether to use batch normalization
-            dropout: Dropout probability
-        """
+        """Initialize MLP classifier."""
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -52,15 +42,7 @@ class MLPClassifier(nn.Module):
 
     @override
     def forward(self, x: Tensor) -> Tensor:
-        """
-        Forward pass.
-
-        Args:
-            x: Input features of shape (batch_size, input_dim)
-
-        Returns:
-            Logits of shape (batch_size, output_dim)
-        """
+        """Forward pass through MLP."""
         out = self.model(x)
         assert isinstance(out, Tensor)
         return out

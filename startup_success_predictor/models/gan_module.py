@@ -32,23 +32,7 @@ class WGANGPModule(LightningModule):
         n_critic: int = 5,
         lambda_gp: float = 10.0,
     ) -> None:
-        """
-        Initialize WGAN-GP Module.
-
-        Args:
-            input_dim: Dimension of input features
-            latent_dim: Dimension of latent space
-            generator_hidden_dims: Hidden dimensions for generator
-            critic_hidden_dims: Hidden dimensions for critic
-            leaky_relu_slope: Slope for LeakyReLU
-            use_batch_norm: Whether to use batch normalization
-            dropout: Dropout probability for critic
-            learning_rate: Learning rate for optimizers
-            beta1: Beta1 for Adam optimizer
-            beta2: Beta2 for Adam optimizer
-            n_critic: Number of critic updates per generator update
-            lambda_gp: Gradient penalty coefficient
-        """
+        """Initialize WGAN-GP module."""
         super().__init__()
         self.save_hyperparameters()
 
@@ -87,28 +71,14 @@ class WGANGPModule(LightningModule):
 
     @override
     def forward(self, z: Tensor) -> Tensor:
-        """
-        Generate samples from latent vectors.
-
-        Args:
-            z: Latent vectors of shape (batch_size, latent_dim)
-
-        Returns:
-            Generated samples of shape (batch_size, input_dim)
-        """
+        """Generate samples from latent vectors."""
         out = self.generator(z)
         assert isinstance(out, Tensor)
         return out
 
     @override
     def training_step(self, batch: tuple[Tensor, Tensor], batch_idx: int) -> None:
-        """
-        Training step with manual optimization.
-
-        Args:
-            batch: Tuple of (features, labels)
-            batch_idx: Batch index
-        """
+        """Training step with manual optimization."""
         real_samples, _ = batch
         batch_size = real_samples.size(0)
 
@@ -164,12 +134,7 @@ class WGANGPModule(LightningModule):
 
     @override
     def configure_optimizers(self) -> tuple[list[Optimizer], list[Any]]:
-        """
-        Configure optimizers for generator and critic.
-
-        Returns:
-            Tuple of (optimizers, schedulers)
-        """
+        """Configure optimizers for generator and critic."""
         opt_g = Adam(
             self.generator.parameters(),
             lr=self.learning_rate,
@@ -183,15 +148,7 @@ class WGANGPModule(LightningModule):
         return [opt_g, opt_c], []
 
     def generate_samples(self, n_samples: int) -> Tensor:
-        """
-        Generate synthetic samples.
-
-        Args:
-            n_samples: Number of samples to generate
-
-        Returns:
-            Generated samples of shape (n_samples, input_dim)
-        """
+        """Generate synthetic samples."""
         self.eval()
         with torch.no_grad():
             z = torch.randn(n_samples, self.latent_dim, device=self.device)

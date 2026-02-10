@@ -31,8 +31,8 @@ def export_onnx_command(
         None,
         help="Path to save ONNX model (default: models/classifier.onnx from settings)",
     ),
-    input_dim: int = typer.Option(
-        ..., help="Input feature dimension of the classifier"
+    input_dim: int | None = typer.Option(
+        None, help="Input feature dimension (auto-detected from checkpoint if omitted)"
     ),
     opset_version: int = typer.Option(14, help="ONNX opset version"),
 ) -> None:
@@ -40,9 +40,8 @@ def export_onnx_command(
 
     from startup_success_predictor.config import get_settings
 
-    settings = get_settings()
     checkpoint_path = checkpoint
-    output_path = output or settings.models_dir / "classifier.onnx"
+    output_path = output or get_settings().models_dir / "classifier.onnx"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     export_to_onnx(

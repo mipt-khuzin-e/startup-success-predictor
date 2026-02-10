@@ -1,10 +1,6 @@
-"""Inference utilities for startup success prediction.
+"""Inference utilities for startup success prediction."""
 
-This module provides reusable functions for loading a model, preprocessing
-inputs, and running predictions. CLI entrypoints are implemented in
-``startup_success_predictor.cli`` (Typer-based).
-"""
-
+import logging
 from pathlib import Path
 
 import polars as pl
@@ -13,19 +9,13 @@ import torch
 from startup_success_predictor.data.preprocessing import polars_to_tensor
 from startup_success_predictor.models.classifier_module import ClassifierModule
 
+logger = logging.getLogger(__name__)
+
 
 def load_model(checkpoint_path: Path) -> ClassifierModule:
-    """
-    Load trained model from checkpoint.
-
-    Args:
-        checkpoint_path: Path to model checkpoint
-
-    Returns:
-        Loaded model
-    """
-    print(f"Loading model from: {checkpoint_path}")
-    model = ClassifierModule.load_from_checkpoint(checkpoint_path)
+    """Load trained model from checkpoint."""
+    logger.info("Loading model from: %s", checkpoint_path)
+    model = ClassifierModule.load_from_checkpoint(checkpoint_path, weights_only=False)
     model.eval()
     return model
 
@@ -37,19 +27,7 @@ def preprocess_input(
     normalization_stats: dict[str, dict[str, float]],
     encoding_meta: dict[str, dict[str, list[str]]],
 ) -> torch.Tensor:
-    """
-    Preprocess input data for inference.
-
-    Args:
-        df: Input DataFrame
-        feature_cols: List of feature column names
-        categorical_cols: List of categorical column names
-        normalization_stats: Normalization statistics
-        encoding_meta: Encoding metadata
-
-    Returns:
-        Preprocessed tensor
-    """
+    """Preprocess input data for inference."""
     # Encode categorical variables
     if categorical_cols:
         for col in categorical_cols:
@@ -76,25 +54,10 @@ def predict(
     model: ClassifierModule,
     input_tensor: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Make predictions.
-
-    Args:
-        model: Trained model
-        input_tensor: Input tensor
-
-    Returns:
-        Tuple of (predictions, probabilities)
-    """
+    """Make predictions with model."""
     with torch.no_grad():
         logits = model(input_tensor)
         probs = torch.sigmoid(logits)
         preds = (probs > 0.5).int()
 
     return preds, probs
-
-
-# NOTE:
-# This module intentionally does not provide a standalone CLI. Use the
-# Typer-based ``infer`` command in ``startup_success_predictor.cli`` for
-# end-user inference from the command line.

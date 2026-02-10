@@ -5,47 +5,48 @@ import os
 from pathlib import Path
 
 import polars as pl
+from omegaconf import DictConfig
 
 from startup_success_predictor.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 
+def resolve_data_path(cfg: DictConfig) -> Path:
+    """Resolve the data file path from config with fallback to first CSV in raw_data_dir."""
+    data_path = get_settings().raw_data_dir / cfg.data.data_file
+    if data_path.exists():
+        return data_path
+
+    csv_files = list(get_settings().raw_data_dir.glob("*.csv"))
+    if not csv_files:
+        raise FileNotFoundError(f"No data file found in {get_settings().raw_data_dir}")
+
+    logger.info("Using fallback data file: %s", csv_files[0])
+    return csv_files[0]
+
+
 def setup_kaggle_credentials() -> None:
     """Setup Kaggle credentials from environment variables."""
-    settings = get_settings()
 
     # Set environment variables for Kaggle API
-    os.environ["KAGGLE_USERNAME"] = settings.kaggle_username
-    os.environ["KAGGLE_KEY"] = settings.kaggle_key
+    os.environ["KAGGLE_USERNAME"] = get_settings().kaggle_username
+    os.environ["KAGGLE_KEY"] = get_settings().kaggle_key
 
 
 def download_startup_data(output_dir: Path | None = None) -> None:
-    """
-    Download startup investment dataset from Kaggle.
-
-    Args:
-        output_dir: Directory to save downloaded data. Defaults to settings.raw_data_dir.
-    """
-    settings = get_settings()
+    """Download startup investment dataset from Kaggle."""
     if output_dir is None:
-        output_dir = settings.raw_data_dir
+        output_dir = get_settings().raw_data_dir
 
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Setup credentials
     setup_kaggle_credentials()
 
-    # Import Kaggle API lazily so that simply importing this module does not
-    # require Kaggle credentials to be configured.
     from kaggle.api.kaggle_api_extended import KaggleApi
 
-    # Initialize Kaggle API
     api = KaggleApi()
     api.authenticate()
 
-    # Download dataset
-    # Dataset: https://www.kaggle.com/datasets/yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase
     dataset_slug = "yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase"
 
     logger.info("Downloading dataset: %s", dataset_slug)
@@ -54,18 +55,9 @@ def download_startup_data(output_dir: Path | None = None) -> None:
 
 
 def validate_data(data_dir: Path | None = None) -> bool:
-    """
-    Validate that required data files exist.
-
-    Args:
-        data_dir: Directory containing data files. Defaults to settings.raw_data_dir.
-
-    Returns:
-        True if validation passes, False otherwise.
-    """
-    settings = get_settings()
+    """Validate that required data files exist."""
     if data_dir is None:
-        data_dir = settings.raw_data_dir
+        data_dir = get_settings().raw_data_dir
 
     # Check for CSV files
     csv_files = list(data_dir.glob("*.csv"))
@@ -85,7 +77,6 @@ def validate_data(data_dir: Path | None = None) -> bool:
 
 def main() -> None:
     """Main entry point for data download."""
-    settings = get_settings()
 
     logger.info("Starting data download...")
     download_startup_data()
@@ -98,8 +89,8 @@ def main() -> None:
         raise RuntimeError("Data validation failed")
 
     logger.info("Next steps:")
-    logger.info("1. Add data to DVC: dvc add %s", settings.raw_data_dir)
-    logger.info("2. Commit changes: git add %s.dvc .gitignore", settings.raw_data_dir)
+    logger.info("1. Add data to DVC: dvc add %s", get_settings().raw_data_dir)
+    logger.info("2. Commit changes: git add %s.dvc .gitignore", get_settings().raw_data_dir)
 
 
 if __name__ == "__main__":

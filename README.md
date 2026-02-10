@@ -74,7 +74,7 @@ cp env.example .env
 
 ### Набор данных
 
-- **Источник**: [Kaggle - Startup Investments](https://www.kaggle.com/datasets/)
+- **Источник**: [Kaggle - Big Startup Success/Fail Dataset from Crunchbase](https://www.kaggle.com/datasets/yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase)
 - **Размер**: ~50+ МБ
 - **Записи**: ~54,000 компаний
 - **Распределение классов**: 90-95% неуспешных против 5-10% успешных
@@ -106,9 +106,7 @@ python -m startup_success_predictor.cli download-data
 
 ### Обучение моделей
 
-1. (Опционально) Запустить локальный сервер MLflow для отслеживания экспериментов:
-
-По умолчанию логи пишутся в локальную директорию `mlruns` (без сервера). Если хотите веб-интерфейс, можно отдельно запустить MLflow:
+1. Запустить локальный сервер MLflow для отслеживания экспериментов (по умолчанию пайплайн ожидает сервер на `127.0.0.1:8080`):
 
 ```bash
 mlflow server --host 127.0.0.1 --port 8080 \
@@ -126,7 +124,7 @@ python -m startup_success_predictor.cli train
 
 ```bash
 python -m startup_success_predictor.train \
-  mlflow.tracking_uri=file:mlruns \
+  mlflow.tracking_uri=http://127.0.0.1:8080 \
   train.two_stage.train_gan_first=false \
   train.trainer.max_epochs=1
 ```
