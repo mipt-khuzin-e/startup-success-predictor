@@ -1,6 +1,4 @@
 [core]
     remote = r2
 ['remote "r2"']
-    url = s3://startup-success-predictor
-    endpointurl = https://b64eaa9dd405c14e64170458eb9b9bce.r2.cloudflarestorage.com
-    region = auto
+    url = https://pub-c5a51c2564804932a4bab4b471d87241.r2.dev
