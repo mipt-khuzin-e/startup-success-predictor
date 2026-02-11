@@ -1,6 +1,6 @@
 # Training configuration for baseline MLP classifier without GAN or synthetic data
 trainer:
-  max_epochs: 50
+  max_epochs: 4
   accelerator: auto
   devices: auto
   precision: 32

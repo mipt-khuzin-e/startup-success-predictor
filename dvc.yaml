@@ -1,6 +1,6 @@
 stages:
   download:
-    cmd: python -m startup_success_predictor.data.download
+    cmd: uv run python -m startup_success_predictor.data.download
     deps:
       - startup_success_predictor/data/download.py
     outs:

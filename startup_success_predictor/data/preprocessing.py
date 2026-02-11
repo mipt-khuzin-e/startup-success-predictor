@@ -1,6 +1,7 @@
 """Data preprocessing utilities using Polars."""
 
 from datetime import date
+from enum import StrEnum
 from typing import Any
 
 import polars as pl
@@ -8,36 +9,37 @@ import torch
 from torch import Tensor
 
 
+class EncodingMethod(StrEnum):
+    """Supported categorical encoding methods."""
+
+    ONEHOT = "onehot"
+    LABEL = "label"
+
+
 def encode_categorical(
     df: pl.DataFrame,
     categorical_cols: list[str],
-    method: str = "onehot",
+    method: str | EncodingMethod = EncodingMethod.ONEHOT,
 ) -> tuple[pl.DataFrame, dict[str, Any]]:
     """Encode categorical variables using onehot or label encoding."""
     encoding_meta: dict[str, Any] = {}
+    method_enum = EncodingMethod(method) if isinstance(method, str) else method
 
-    if method == "onehot":
-        # Use Polars to_dummies for one-hot encoding
-        df_encoded = df.to_dummies(columns=categorical_cols, drop_first=False)
-        encoding_meta["method"] = "onehot"
-        encoding_meta["columns"] = categorical_cols
-    elif method == "label":
-        # Label encoding using categorical mapping
-        df_encoded = df.clone()
-        for col in categorical_cols:
-            # Get unique categories
-            categories = df[col].unique().sort().to_list()
-            # Create mapping
-            mapping = {cat: idx for idx, cat in enumerate(categories)}
-            encoding_meta[col] = {"categories": categories, "mapping": mapping}
-
-            # Apply mapping
-            df_encoded = df_encoded.with_columns(
-                pl.col(col).replace_strict(mapping, default=None).alias(col)
-            )
-        encoding_meta["method"] = "label"
-    else:
-        raise ValueError(f"Unknown encoding method: {method}")
+    match method_enum:
+        case EncodingMethod.ONEHOT:
+            df_encoded = df.to_dummies(columns=categorical_cols, drop_first=False)
+            encoding_meta["method"] = "onehot"
+            encoding_meta["columns"] = categorical_cols
+        case EncodingMethod.LABEL:
+            df_encoded = df.clone()
+            for col in categorical_cols:
+                categories = df[col].unique().sort().to_list()
+                mapping = {cat: idx for idx, cat in enumerate(categories)}
+                encoding_meta[col] = {"categories": categories, "mapping": mapping}
+                df_encoded = df_encoded.with_columns(
+                    pl.col(col).replace_strict(mapping, default=None).alias(col)
+                )
+            encoding_meta["method"] = "label"
 
     return df_encoded, encoding_meta
 

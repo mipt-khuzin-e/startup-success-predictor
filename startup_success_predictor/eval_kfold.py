@@ -14,6 +14,7 @@ By default, it runs 5-fold stratified evaluation with k in {100, 500}.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import hydra
@@ -166,7 +167,11 @@ def _aggregate_metrics(
     return summary
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="config")
+@hydra.main(
+    version_base=None,
+    config_path=str(Path(__file__).resolve().parent.parent / "configs"),
+    config_name="config",
+)
 def main(cfg: DictConfig) -> None:
     """Run stratified 5-fold evaluation using the current Hydra config.
 

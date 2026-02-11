@@ -66,15 +66,6 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
   uvicorn startup_success_predictor.app:app --host 0.0.0.0 --port 8000
   ```
 
-### TensorRT conversion
-
-- Convert ONNX model to TensorRT engine (requires `trtexec` from TensorRT):
-  ```bash
-  bash scripts/convert_trt.sh \
-    --onnx models/classifier.onnx \
-    --output models/classifier.engine
-  ```
-
 ### Quality checks & tests
 
 - Run full test suite (pytest):
@@ -102,7 +93,6 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 - `pyproject.toml` — defines the `startup-success-predictor` package, runtime and dev dependencies, and tooling configuration for Ruff and mypy.
 - `startup_success_predictor/` — main Python package containing configuration, data pipeline, models, training, export, inference, and API server code.
 - `configs/` — Hydra configuration tree for data, model, and training; this is the primary way to control experiments from the CLI.
-- `scripts/convert_trt.sh` — shell wrapper for converting ONNX models to TensorRT engines.
 - `env.example` — template for `.env` consumed by Pydantic `Settings`.
 
 The project is organized as a two-stage ML pipeline (WGAN-GP → classifier) with clear separation between configuration, data handling, model logic, and serving.
@@ -132,7 +122,7 @@ Hydra is responsible for **experiment configuration and logging**, while Pydanti
 
 - **Data download (`startup_success_predictor.data.download`)**
   - Reads Kaggle credentials from `Settings` and exports them as `KAGGLE_USERNAME`/`KAGGLE_KEY` for the official Kaggle API client.
-  - Downloads a Crunchbase-based startup dataset from Kaggle into `settings.raw_data_dir` and unzips it.
+  - Downloads the Startup Investments dataset from Kaggle into `settings.raw_data_dir` and unzips it.
   - Provides a `validate_data` routine that lists CSV files and basic shapes; the script’s CLI flow recommends the next DVC steps (adding the raw data to DVC and committing the corresponding `.dvc` files).
 
 - **Preprocessing utilities (`startup_success_predictor.data.preprocessing`)**
@@ -219,4 +209,4 @@ This design centralizes **experiment logic** in a single training script while k
     - Run: `docker run -p 8000:8000 startup-predictor`
   - The container is expected to run `uvicorn` against `startup_success_predictor.app:app`, serving the ONNX-backed API.
 
-This end-to-end flow is: **Kaggle data → Lightning GAN + classifier training (Hydra + MLflow) → checkpoint → ONNX export → FastAPI/ Docker/ TensorRT deployment paths**.
+This end-to-end flow is: **Kaggle data → Lightning GAN + classifier training (Hydra + MLflow) → checkpoint → ONNX export → FastAPI/ Docker deployment**.

@@ -3,7 +3,7 @@ data_file: big_startup_secsees_dataset.csv # Main data file name (from Kaggle do
 
 # DataModule parameters
 batch_size: 128
-num_workers: 4
+num_workers: 0
 
 # Temporal split dates
 train_end: "2015-01-01"

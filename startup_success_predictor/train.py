@@ -1,6 +1,8 @@
 """Training pipeline for startup success prediction."""
 
 import logging
+import os
+import subprocess
 from pathlib import Path
 
 import hydra
@@ -15,6 +17,8 @@ from startup_success_predictor.data.download import resolve_data_path
 from startup_success_predictor.models.classifier_module import ClassifierModule
 from startup_success_predictor.models.gan_module import WGANGPModule
 from startup_success_predictor.utils.plotting import plot_classification_metrics
+
+os.environ.setdefault("NO_PROXY", "localhost,127.0.0.1,0.0.0.0")
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +200,11 @@ def train_classifier(
     return classifier_model
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="config")
+@hydra.main(
+    version_base=None,
+    config_path=str(Path(__file__).resolve().parent.parent / "configs"),
+    config_name="config",
+)
 def main(cfg: DictConfig) -> None:
     """Main training pipeline."""
     logger.info("=" * 80)
@@ -216,8 +224,6 @@ def main(cfg: DictConfig) -> None:
 
     # Log git commit
     try:
-        import subprocess
-
         git_commit = (
             subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
         )

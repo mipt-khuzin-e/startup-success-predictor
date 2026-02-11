@@ -5,21 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import polars as pl
 import torch
 from lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.utils.data import DataLoader, Dataset
 
 if TYPE_CHECKING:
     from omegaconf import DictConfig
 
-from startup_success_predictor.data.preprocessing import (
-    encode_categorical,
-    handle_missing_values,
-    normalize_features,
-    polars_to_tensor,
-    temporal_split,
-)
+from startup_success_predictor.data.dataset_processing import process_startup_dataset
 
 
 class StartupDataModule(LightningDataModule):
@@ -101,95 +94,23 @@ class StartupDataModule(LightningDataModule):
             raise FileNotFoundError(f"Data file not found: {self.data_path}")
 
     def setup(self, stage: str | None = None) -> None:
-        """
-        Setup datasets for training, validation, and testing.
-
-        Args:
-            stage: Current stage ('fit', 'validate', 'test', or None)
-        """
-        # Load data
-        df = pl.read_csv(self.data_path)
-
-        # Handle missing values according to configuration
-        df = handle_missing_values(df, strategy=self.handle_missing)
-
-        # Create binary target: 1 for success (acquired, ipo, operating), 0 for closed
-        # This depends on the actual dataset structure
-        if self.target_col in df.columns:
-            # Map status to binary
-            df = df.with_columns(
-                pl.when(pl.col(self.target_col).is_in(["acquired", "ipo", "operating"]))
-                .then(1)
-                .otherwise(0)
-                .alias("target")
-            )
-        else:
-            raise ValueError(f"Target column '{self.target_col}' not found in data")
-
-        # Temporal split
-        train_df, val_df, test_df = temporal_split(
-            df, self.date_col, self.train_end, self.val_end
+        """Setup datasets for training, validation, and testing."""
+        result = process_startup_dataset(
+            data_path=self.data_path,
+            train_end=self.train_end,
+            val_end=self.val_end,
+            target_col=self.target_col,
+            date_col=self.date_col,
+            categorical_cols=self.categorical_cols,
+            handle_missing=self.handle_missing,
+            encoding_method=self.encoding_method,
         )
-
-        # Get feature columns (exclude target, date, and non-numeric)
-        exclude_cols = {self.target_col, "target", self.date_col}
-        all_cols = set(df.columns)
-        potential_feature_cols = list(all_cols - exclude_cols)
-
-        # Separate numerical and categorical
-        numerical_cols = [
-            col
-            for col in potential_feature_cols
-            if col not in self.categorical_cols
-            and df[col].dtype in [pl.Int64, pl.Int32, pl.Float64, pl.Float32]
-        ]
-
-        # Encode categorical variables (on training data)
-        if self.categorical_cols:
-            train_df, self.encoding_meta = encode_categorical(
-                train_df, self.categorical_cols, method=self.encoding_method
-            )
-            # Apply same encoding to val and test
-            for col in self.categorical_cols:
-                if self.encoding_meta["method"] == "label":
-                    mapping = self.encoding_meta[col]["mapping"]
-                    val_df = val_df.with_columns(
-                        pl.col(col).replace_strict(mapping, default=-1).alias(col)
-                    )
-                    test_df = test_df.with_columns(
-                        pl.col(col).replace_strict(mapping, default=-1).alias(col)
-                    )
-
-        # Normalize numerical features (fit on training data)
-        if numerical_cols:
-            train_df, self.normalization_stats = normalize_features(
-                train_df, numerical_cols
-            )
-            val_df, _ = normalize_features(
-                val_df, numerical_cols, self.normalization_stats
-            )
-            test_df, _ = normalize_features(
-                test_df, numerical_cols, self.normalization_stats
-            )
-
-        # Store feature columns
-        self.feature_cols = numerical_cols + self.categorical_cols
-
-        # Convert to tensors
-        features_train = polars_to_tensor(train_df, self.feature_cols)
-        # Squeeze only the last dimension to keep batch dimension even for small datasets
-        labels_train = polars_to_tensor(train_df, ["target"]).squeeze(-1)
-
-        features_val = polars_to_tensor(val_df, self.feature_cols)
-        labels_val = polars_to_tensor(val_df, ["target"]).squeeze(-1)
-
-        features_test = polars_to_tensor(test_df, self.feature_cols)
-        labels_test = polars_to_tensor(test_df, ["target"]).squeeze(-1)
-
-        # Create datasets
-        self.train_dataset = TensorDataset(features_train, labels_train)
-        self.val_dataset = TensorDataset(features_val, labels_val)
-        self.test_dataset = TensorDataset(features_test, labels_test)
+        self.train_dataset = result.train_dataset
+        self.val_dataset = result.val_dataset
+        self.test_dataset = result.test_dataset
+        self.feature_cols = result.feature_cols
+        self.normalization_stats = result.normalization_stats
+        self.encoding_meta = result.encoding_meta
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Return training DataLoader."""

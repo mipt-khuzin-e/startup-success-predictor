@@ -34,7 +34,7 @@ cp env.example .env
 
 ### Data management
 
-Download startup dataset from Kaggle (recommended via DVC):
+Download Startup Investments dataset from Kaggle (recommended via DVC):
 
 ```bash
 dvc repro download
@@ -106,14 +106,6 @@ Run FastAPI server (requires `models/classifier.onnx`):
 
 ```bash
 uvicorn startup_success_predictor.app:app --host 0.0.0.0 --port 8000
-```
-
-Convert ONNX to TensorRT (requires GPU and `trtexec`):
-
-```bash
-bash scripts/convert_trt.sh \
-  --onnx models/classifier.onnx \
-  --output models/classifier.engine
 ```
 
 ### Testing and quality
@@ -267,7 +259,7 @@ startup_success_predictor/
 ├── app.py              # FastAPI server
 ├── eval_kfold.py       # K-fold cross-validation
 ├── data/
-│   ├── download.py     # Kaggle dataset download
+│   ├── download.py     # Kaggle Startup Investments download
 │   ├── preprocessing.py # Polars-based preprocessing
 │   └── datamodule.py   # PyTorch Lightning DataModule
 ├── models/
@@ -287,4 +279,4 @@ startup_success_predictor/
 3. **Modular preprocessing**: Fit encoders/normalizers on train split, reuse on val/test
 4. **Hydra composition**: Swap configs (`model: gan` vs `model: classifier`) without code changes
 5. **MLflow tracking**: All experiments logged with hyperparameters, metrics, and git commit
-6. **ONNX deployment**: Export to ONNX for production serving, optional TensorRT for GPU inference
+6. **ONNX deployment**: Export to ONNX for production serving

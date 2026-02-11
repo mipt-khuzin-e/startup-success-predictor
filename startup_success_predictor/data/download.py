@@ -1,10 +1,11 @@
-"""Download and manage startup investment data from Kaggle."""
+"""Download and manage Startup Investments dataset from Kaggle."""
 
 import logging
 import os
 from pathlib import Path
 
 import polars as pl
+from kaggle.api.kaggle_api_extended import KaggleApi
 from omegaconf import DictConfig
 
 from startup_success_predictor.config import get_settings
@@ -35,19 +36,17 @@ def setup_kaggle_credentials() -> None:
 
 
 def download_startup_data(output_dir: Path | None = None) -> None:
-    """Download startup investment dataset from Kaggle."""
+    """Download Startup Investments dataset from Kaggle."""
     if output_dir is None:
         output_dir = get_settings().raw_data_dir
 
     output_dir.mkdir(parents=True, exist_ok=True)
     setup_kaggle_credentials()
 
-    from kaggle.api.kaggle_api_extended import KaggleApi
-
     api = KaggleApi()
     api.authenticate()
 
-    dataset_slug = "yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase"
+    dataset_slug = "justinas/startup-investments"
 
     logger.info("Downloading dataset: %s", dataset_slug)
     api.dataset_download_files(dataset_slug, path=str(output_dir), unzip=True)

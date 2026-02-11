@@ -1,67 +1,127 @@
 # GAN-Augmented Startup Success Predictor
 
+Хузин Эльдар Русланович (khuzin.er@phystech.edu)
+
 Бинарная классификация стартапов с использованием WGAN-GP для аугментации данных с целью устранения дисбаланса классов.
 
-> Быстрый старт: см. разделы **Установка**, **Обучение** и **Инференс** — они описывают полный путь от клонирования репозитория до получения предсказаний.
+## Постановка задачи
 
-## Описание проекта
+- **Сухой остаток:** бинарная классификация стартапов на успешные (получившие следующий раунд финансирования, IPO или acquisition) и неуспешные (закрытые или не получившие финансирования) — предсказание данной характеристики.
+- **Решаемая проблема:** дисбаланс классов в данных (только 3-7% стартапов успешны) — на таких данных сложно обучать модели.
+- **Основа решения:** обучение и применение Wasserstein GAN для генерации синтетических данных.
+- **Ценность:** система может использоваться венчурными фондами для первичного скрининга стартапов, снижая время на due diligence и улучшая качество инвестиционных решений.
 
-Этот проект предсказывает успех стартапа (следующий раунд финансирования, IPO или поглощение) с использованием двухэтапного пайплайна:
+## Формат входных и выходных данных
 
-1.  **WGAN-GP** для генерации синтетических данных успешных стартапов для решения проблемы дисбаланса классов.
-2.  **MLP Classifier** (классификатор на основе многослойного перцептрона), обученный на дополненных данных для бинарной классификации.
+- **Input:** вектор признаков стартапа — POST-запрос в формате:
 
-### Проблема
+  ```json
+  {
+    "features": { "feature_0": 0.1, "feature_1": 0.5 },
+    "categorical": { "category_0": 1 }
+  }
+  ```
 
-Только 3-7% стартапов достигают успеха, что создает серьезный дисбаланс классов и затрудняет обучение моделей.
+  Числовые и категориальные признаки передаются отдельно.
 
-### Решение
+- **Output:** ответ в формате:
 
-Использование Wasserstein GAN with Gradient Penalty (WGAN-GP) для генерации синтетических примеров миноритарного класса, что улучшает производительность классификатора.
+  ```json
+  { "success": true, "probability": 0.87 }
+  ```
 
-### Ценность
+- **Протокол:** HTTP, FastAPI-сервер, обрабатывающий POST-запрос на `/predict`.
 
-Позволяет венчурным фондам проводить первичный отбор стартапов, сокращая время на due diligence и улучшая инвестиционные решения.
+## Датасет
 
-## Установка
+- **Источник:** [Kaggle — Startup Investments](https://www.kaggle.com/datasets/justinas/startup-investments/data)
+- **Размер:** ~50+ MB (несколько связанных CSV-файлов), ~54 000 компаний
+- **Дисбаланс:** соотношение примерно 90-95% негативных vs 5-10% позитивных примеров — идеальный сценарий для GAN-аугментации
+
+Известные сложности: пропущенные значения, необходимость feature engineering, устаревшие данные, влияние временного периода на успешность.
+
+## Метрики
+
+**Основные:**
+
+| Метрика                     | Целевое значение | Описание                                            |
+| --------------------------- | ---------------- | --------------------------------------------------- |
+| AUROC                       | > 0.80           | Основная метрика, инвариантная к threshold          |
+| AUPRC                       | > 0.45           | Информативна при сильном дисбалансе (baseline ≈ 5%) |
+| F1-score                    | > 0.55           | Гармоническое среднее precision и recall            |
+| Recall (миноритарный класс) | > 0.70           | Важно не пропустить успешные стартапы               |
+
+**Дополнительные:** Precision@k (k=100, 500) — имитирует реальный сценарий VC.
+
+## Валидация и тест
+
+- **Temporal Split:**
+  - Train: стартапы до 2015 года
+  - Validation: 2015–2017
+  - Test: 2018+
+- **Stratified K-Fold:** 5 фолдов с сохранением пропорции классов для оценки стабильности
+- **Воспроизводимость:** фиксированный `random_seed=30`, версионирование через DVC, логирование в MLflow, фиксация зависимостей через `uv.lock`
+
+> **Замечание:** GAN обучается _только_ на train set. Синтетические данные генерируются для train set и не используются в validation/test для честной оценки.
+
+## Моделирование
+
+### Бейзлайн
+
+MLP-классификатор без исправления дисбаланса классов.
+
+```bash
+uv run uv run python -m startup_success_predictor.cli train train=baseline
+```
+
+### Основная модель
+
+Двухэтапный pipeline:
+
+1. **Этап 1 — WGAN-GP** для генерации синтетических данных миноритарного класса:
+   - Generator: `Linear(100 → 256) → BatchNorm → LeakyReLU → Linear(256 → 128) → BatchNorm → LeakyReLU → Linear(128 → num_features) → Tanh`
+   - Critic: `Linear(num_features → 128) → LeakyReLU → Dropout(0.3) → Linear(128 → 64) → LeakyReLU → Linear(64 → 1)`
+   - Loss: Wasserstein loss + Gradient Penalty
+
+2. **Этап 2 — MLP Classifier** на расширенном наборе данных:
+   - Архитектура: `MLP [num_features → 256 → 128 → 64 → 1]` с BatchNorm, LeakyReLU, Dropout
+   - Loss: Binary Cross-Entropy
+   - Optimizer: Adam с регуляризацией
+
+---
+
+## Setup
 
 ### Предварительные требования
 
-- Python 3.12+
+- [Python 3.12+](https://www.python.org/downloads/)
 - Пакетный менеджер [uv](https://github.com/astral-sh/uv)
-- Git
-- Docker (для развертывания)
+- [Git](https://git-scm.com/)
+- [Docker](https://www.docker.com/) (для развертывания)
 
-### Инструкция по установке
+### Установка
 
-1.  Склонировать репозиторий:
-
-```bash
-git clone <repository-url>
-cd mipt-2025-mlops
-```
-
-2.  Создать и активировать виртуальное окружение:
+1. Склонировать репозиторий:
 
 ```bash
-uv venv --python 3.12
-source .venv/bin/activate  # Для Windows: .venv\Scripts\activate
+git clone git@github.com:mipt-khuzin-e/startup-success-predictor.git
+cd startup-success-predictor
 ```
 
-3.  Установить зависимости:
+2. Создать окружение и установить зависимости:
 
 ```bash
-uv pip install -e ".[dev]"
+uv sync
 ```
 
-4.  Настроить pre-commit хуки и проверить качество кода:
+3. Настроить pre-commit хуки:
 
 ```bash
-pre-commit install
-pre-commit run --all-files
+uv run pre-commit install
+uv run pre-commit run --all-files
 ```
 
-5.  Настроить переменные окружения для Kaggle (для загрузки данных):
+4. Настроить переменные окружения для Kaggle (для загрузки данных):
 
 ```bash
 cp env.example .env
@@ -70,139 +130,184 @@ cp env.example .env
 
 Либо можно использовать стандартный файл `~/.kaggle/kaggle.json` с токеном Kaggle.
 
-## Данные
+## Train
 
-### Набор данных
+### 1. Загрузка данных
 
-- **Источник**: [Kaggle - Big Startup Success/Fail Dataset from Crunchbase](https://www.kaggle.com/datasets/yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase)
-- **Размер**: ~50+ МБ
-- **Записи**: ~54,000 компаний
-- **Распределение классов**: 90-95% неуспешных против 5-10% успешных
-
-### Управление данными
-
-Данные версионируются с использованием DVC и разделены по времени:
-
-- **Train (Обучение)**: Стартапы до 2015 года
-- **Validation (Валидация)**: 2015-2017 годы
-- **Test (Тест)**: 2018 год и позже
-
-## Обучение
-
-### Загрузка данных
-
-Вариант 1 (рекомендуемый для ДЗ) — через DVC:
+Вариант 1 (рекомендуемый) — через DVC:
 
 ```bash
-# Однократно: запустить стадию загрузки DVC для наполнения data/raw
-dvc repro download
+uv run dvc repro download
 ```
 
-Вариант 2 — напрямую через CLI (делает то же самое, что и DVC-стадия):
+Вариант 2 — напрямую через CLI:
 
 ```bash
-python -m startup_success_predictor.cli download-data
+uv run python -m startup_success_predictor.cli download-data
 ```
 
-### Обучение моделей
+### 2. Обучение моделей
 
-1. Запустить локальный сервер MLflow для отслеживания экспериментов (по умолчанию пайплайн ожидает сервер на `127.0.0.1:8080`):
+Запустить локальный сервер MLflow для отслеживания экспериментов (по умолчанию пайплайн ожидает сервер на `127.0.0.1:8080`):
 
 ```bash
-mlflow server --host 127.0.0.1 --port 8080 \
+uv run mlflow server --host 127.0.0.1 --port 8080 \
   --backend-store-uri sqlite:///mlflow.db \
   --default-artifact-root ./mlruns
 ```
 
-2. Запустить обучение (Hydra + Lightning):
+Запустить обучение основной модели (WGAN-GP + MLP, Hydra + Lightning):
 
 ```bash
-python -m startup_success_predictor.cli train
+uv run python -m startup_success_predictor.cli train
 ```
 
-При необходимости можно переопределить конфиг Hydra, например, уменьшить число эпох или отключить GAN:
+При необходимости можно переопределить параметры Hydra:
 
 ```bash
-python -m startup_success_predictor.train \
+uv run python -m startup_success_predictor.train \
   mlflow.tracking_uri=http://127.0.0.1:8080 \
   train.two_stage.train_gan_first=false \
   train.trainer.max_epochs=1
 ```
 
-Пайплайн обучения:
+### 3. Дополнительная оценка
 
-1.  Обучает WGAN-GP на успешных стартапах (миноритарный класс).
-2.  Генерирует синтетические примеры успешных стартапов.
-3.  Обучает MLP классификатор на расширенном наборе данных.
-4.  Логирует метрики в MLFlow.
-
-Бейзлайн (без GAN, только MLP классификатор):
+Стратифицированная 5-fold оценка стабильности модели:
 
 ```bash
-python -m startup_success_predictor.cli train train=baseline
-```
-
-Стратифицированная 5-fold оценка (дополнительная проверка стабильности модели):
-
-```bash
-python -m startup_success_predictor.eval_kfold \
+uv run python -m startup_success_predictor.eval_kfold \
   train.trainer.max_epochs=5
 ```
 
+### Пайплайн обучения
+
+1. Обучает WGAN-GP на успешных стартапах (миноритарный класс).
+2. Генерирует синтетические примеры успешных стартапов.
+3. Обучает MLP-классификатор на расширенном наборе данных.
+4. Логирует метрики и артефакты в MLflow.
+
 ### Конфигурация
 
-Изменять гиперпараметры в директории `configs/` с использованием Hydra.
+Гиперпараметры настраиваются в директории `configs/`:
 
-## Подготовка к продакшену
+- `configs/config.yaml` — главный конфиг (seed, пути, MLflow)
+- `configs/model/classifier.yaml` — архитектура MLP (hidden_dims, dropout, pos_weight)
+- `configs/model/gan.yaml` — параметры WGAN-GP
+- `configs/train/default.yaml` — параметры обучения (epochs, early stopping, checkpointing)
+- `configs/train/baseline.yaml` — конфиг бейзлайна
+- `configs/data/startup.yaml` — настройки данных
+
+## Production preparation
 
 ### Экспорт в ONNX
 
-```bash
-python -m startup_success_predictor.cli export-onnx \
-  --checkpoint path/to/best.ckpt \
-  --input-dim <num_features>
-```
-
-### Конвертация в TensorRT (требуется GPU)
+Конвертация обученного Lightning-чекпоинта в ONNX-формат для инференса:
 
 ```bash
-bash scripts/convert_trt.sh
+uv run python -m startup_success_predictor.cli export-onnx \
+  --checkpoint "path/to/best.ckpt" \
+  --output models/classifier.onnx
 ```
 
-## Инференс
+Параметры `--checkpoint`, `--output` и `--input-dim` определяются автоматически и могут быть опущены:
+
+```bash
+uv run python -m startup_success_predictor.cli export-onnx
+```
+
+### Артефакты для поставки
+
+Для запуска модели в продакшене необходимы:
+
+| Артефакт     | Путь                               | Описание                               |
+| ------------ | ---------------------------------- | -------------------------------------- |
+| ONNX-модель  | `models/classifier.onnx`           | Экспортированная модель классификатора |
+| Приложение   | `startup_success_predictor/app.py` | FastAPI-сервер для инференса           |
+| Конфигурация | `configs/`                         | Параметры модели                       |
+
+Зависимости инференса минимальны: `fastapi`, `uvicorn`, `onnxruntime`, `numpy` — код предсказания (`app.py`) отделен от обучения (`train.py`) и не требует `torch`, `lightning` и других тяжелых пакетов.
+
+## Infer
 
 ### Локальный инференс (из чекпоинта Lightning)
 
 ```bash
-python -m startup_success_predictor.cli infer \
+uv run python -m startup_success_predictor.cli infer \
   --checkpoint path/to/best.ckpt \
   --input-csv data/test_sample.csv \
   --output-csv predictions.csv
 ```
 
-### API Сервер (ONNX + FastAPI)
+**Формат входного CSV:** файл должен содержать столбцы с признаками стартапа (числовые и категориальные). Пример данных можно получить из `data/raw` после загрузки датасета.
 
-1. Убедиться, что у вас есть экспортированная ONNX-модель (`models/classifier.onnx`), см. раздел выше.
+**Формат выходного CSV:** файл `predictions.csv` с колонками оригинальных данных и добавленными предсказаниями.
+
+### API-сервер (ONNX + FastAPI)
+
+1. Убедиться, что ONNX-модель экспортирована (см. раздел Production preparation).
+
 2. Запустить сервер:
 
 ```bash
-uvicorn startup_success_predictor.app:app --host 0.0.0.0 --port 8000
+uv run uvicorn startup_success_predictor.app:app --host 0.0.0.0 --port 8000
 ```
 
-3. Пример запроса к `POST /predict`:
+3. Эндпоинты:
+
+- `GET /` — статус сервера
+- `GET /health` — проверка здоровья (статус модели)
+- `POST /predict` — предсказание для одного стартапа
+- `POST /predict_batch` — пакетное предсказание
+
+4. Примеры запросов:
+
+**Одиночное предсказание** (`POST /predict`):
 
 ```bash
 curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
   -d '{
-    "features": {"feature0": 0.1},
-    "categorical": {}
+    "features": {"feature_1": 0.5, "feature_2": 1.2},
+    "categorical": {"category_1": 0, "category_2": 1}
   }'
 ```
 
-### Docker развертывание
+Ответ:
 
-Простой запуск только API:
+```json
+{ "success": true, "probability": 0.87 }
+```
+
+**Пакетное предсказание** (`POST /predict_batch`):
+
+```bash
+curl -X POST "http://localhost:8000/predict_batch" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "features": {"feature_1": 0.5, "feature_2": 1.2},
+      "categorical": {"category_1": 0, "category_2": 1}
+    },
+    {
+      "features": {"feature_1": 0.1, "feature_2": 0.3},
+      "categorical": {"category_1": 2, "category_2": 0}
+    }
+  ]'
+```
+
+Ответ:
+
+```json
+[
+  { "success": true, "probability": 0.87 },
+  { "success": false, "probability": 0.12 }
+]
+```
+
+### Docker-развертывание
+
+Запуск только API:
 
 ```bash
 docker build -t startup-predictor .
@@ -217,60 +322,39 @@ docker run -p 8000:8000 \
 docker-compose up --build
 ```
 
-По умолчанию поднимаются два сервиса:
+Сервисы:
 
-- `api` — FastAPI + ONNX модель на порту 8000
-- `mlflow` — сервер MLflow на порту 5000
+- `api` — FastAPI + ONNX-модель на порту **8000**
+- `mlflow` — сервер MLflow на порту **5000**
 
-Важно:
+Для работы необходимо:
 
-- В `docker-compose.yml` используется `./models:/app/models:ro` и `./data:/app/data:ro`, поэтому позаботьтесь, чтобы в `./models` лежала `classifier.onnx`, а в `./data` — нужные CSV.
-- Переменные окружения `KAGGLE_USERNAME`, `KAGGLE_KEY`, `MLFLOW_TRACKING_URI` можно пробрасывать через `.env` или вручную при запуске.
-
-## Метрики
-
-- **AUROC**: > 0.80 (цель)
-- **AUPRC**: > 0.45 (цель)
-- **F1-Score**: > 0.55 (цель)
-- **Recall (миноритарный класс)**: > 0.70 (цель)
-
-## Архитектура
-
-```
-Пайплайн данных: Kaggle → DVC → Polars → PyTorch DataLoader
-Обучение: WGAN-GP → Синтетические данные → MLP Классификатор
-Развертывание: ONNX → FastAPI → Docker
-```
+- Поместить `classifier.onnx` в `./models/`
+- Переменные окружения (`KAGGLE_USERNAME`, `KAGGLE_KEY`, `MLFLOW_TRACKING_URI`) задаются через `.env` или при запуске
 
 ## Разработка
 
 ### Качество кода
 
-- Линтинг и форматирование: `ruff`, `black`, `isort`
+- Линтинг и форматирование: `ruff`
 - Проверка типов: `mypy`
-- Pre-commit хуки обеспечивают соблюдение стандартов (`pre-commit run --all-files`)
+- Pre-commit хуки обеспечивают соблюдение стандартов
 
 ### Запуск тестов
 
 ```bash
-pytest
+uv run pytest
 ```
 
-### Запуск линтеров и проверок
+### Запуск линтеров
 
 ```bash
-ruff check .
-ruff format .
-black startup_success_predictor/ tests/
-isort startup_success_predictor/ tests/
-mypy startup_success_predictor/
-pre-commit run --all-files
+uv run ruff check .
+uv run ruff format .
+uv run mypy startup_success_predictor/
+uv run pre-commit run --all-files
 ```
 
 ## Лицензия
 
 MIT
-
-## Автор
-
-Хузин Эльдар Русланович (khuzin.er@phystech.edu)

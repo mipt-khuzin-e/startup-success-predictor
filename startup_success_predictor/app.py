@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import onnxruntime as ort
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -140,6 +141,4 @@ async def predict_batch(
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)

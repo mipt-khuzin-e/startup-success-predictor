@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 
+import onnx
 import torch
 
 from startup_success_predictor.models.classifier_module import ClassifierModule
@@ -14,7 +15,7 @@ def export_to_onnx(
     checkpoint_path: Path,
     output_path: Path,
     input_dim: int | None = None,
-    opset_version: int = 14,
+    opset_version: int = 18,
 ) -> None:
     """Export PyTorch Lightning checkpoint to ONNX."""
     logger.info("Loading model from: %s", checkpoint_path)
@@ -54,8 +55,6 @@ def export_to_onnx(
     logger.info("Model exported successfully to: %s", output_path)
 
     # Validate ONNX model
-    import onnx
-
     onnx_model = onnx.load(str(output_path))
     onnx.checker.check_model(onnx_model)
     logger.info("ONNX model validation passed!")
