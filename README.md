@@ -66,14 +66,6 @@
 
 ## Моделирование
 
-### Бейзлайн
-
-MLP-классификатор без исправления дисбаланса классов.
-
-```bash
-uv run python -m startup_success_predictor.cli train train=baseline
-```
-
 ### Основная модель
 
 Двухэтапный pipeline:
@@ -148,13 +140,15 @@ uv run python -m startup_success_predictor.cli download-data
 
 ### 2. Обучение моделей
 
-Запустить локальный сервер MLflow для отслеживания экспериментов (по умолчанию пайплайн ожидает сервер на `127.0.0.1:8080`):
+Запустить локальный сервер MLflow для отслеживания экспериментов:
 
 ```bash
 uv run mlflow server --host 127.0.0.1 --port 8080 \
   --backend-store-uri sqlite:///mlflow.db \
   --default-artifact-root ./mlruns
 ```
+
+> **Примечание:** Для локального обучения используется порт 8080. При развертывании через Docker Compose MLflow будет доступен на порту 5000.
 
 Запустить обучение основной модели (WGAN-GP + MLP, Hydra + Lightning):
 
@@ -329,8 +323,10 @@ docker-compose up --build
 
 Для работы необходимо:
 
-- Поместить `classifier.onnx` в `./models/`
+- Экспортировать обученную модель в ONNX (см. раздел "Экспорт в ONNX") и поместить `classifier.onnx` в `./models/`
 - Переменные окружения (`KAGGLE_USERNAME`, `KAGGLE_KEY`, `MLFLOW_TRACKING_URI`) задаются через `.env` или при запуске
+
+> **Примечание:** При использовании Docker Compose MLflow будет доступен на `http://localhost:5000`, API на `http://localhost:8000`.
 
 ## Разработка
 
@@ -352,6 +348,15 @@ uv run pytest
 uv run ruff check .
 uv run ruff format .
 uv run mypy startup_success_predictor/
+```
+
+### Pre-commit хуки
+
+```bash
+# Установить хуки (если еще не установлены)
+uv run pre-commit install
+
+# Запустить на всех файлах
 uv run pre-commit run --all-files
 ```
 
