@@ -75,7 +75,9 @@ def plot_classification_metrics(
     metric_values = [auroc, auprc, f1, recall]
 
     fig, ax = plt.subplots(figsize=(7, 5))
-    bars = ax.bar(metric_names, metric_values, color=["#4c72b0", "#55a868", "#c44e52", "#8172b3"])
+    bars = ax.bar(
+        metric_names, metric_values, color=["#4c72b0", "#55a868", "#c44e52", "#8172b3"]
+    )
     ax.set_ylim(0, 1.0)
     ax.set_ylabel("Score")
     ax.set_title("Test Set Classification Metrics")
@@ -114,7 +116,9 @@ def plot_classification_metrics(
 
     thresholds_np = thresholds.numpy()
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(thresholds_np, precision_scores, marker="o", label="Precision", markersize=3)
+    ax.plot(
+        thresholds_np, precision_scores, marker="o", label="Precision", markersize=3
+    )
     ax.plot(thresholds_np, recall_scores, marker="s", label="Recall", markersize=3)
     ax.plot(thresholds_np, f1_scores, marker="^", label="F1 Score", markersize=3)
     ax.set_xlabel("Classification Threshold")

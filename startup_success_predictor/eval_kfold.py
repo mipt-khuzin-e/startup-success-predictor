@@ -195,7 +195,9 @@ def main(cfg: DictConfig) -> None:
     labels_np = labels_all.cpu().numpy()
 
     n_splits = 5
-    folds = _stratified_kfold_indices(labels_np, n_splits=n_splits, random_seed=cfg.seed)
+    folds = _stratified_kfold_indices(
+        labels_np, n_splits=n_splits, random_seed=cfg.seed
+    )
 
     input_dim = features_all.shape[1]
     metrics_per_fold: list[dict[str, float]] = []

@@ -38,7 +38,9 @@ def train_gan(
     logger.info("Minority class samples: %d", features_minority.shape[0])
 
     # Create dataset for minority class
-    minority_dataset = torch.utils.data.TensorDataset(features_minority, labels_minority)
+    minority_dataset = torch.utils.data.TensorDataset(
+        features_minority, labels_minority
+    )
     minority_loader = torch.utils.data.DataLoader(
         minority_dataset,
         batch_size=cfg.data.batch_size,
@@ -130,7 +132,9 @@ def train_classifier(
         logger.info("Augmented training size: %d", features_augmented.shape[0])
 
         # Create augmented dataset
-        train_dataset_aug = torch.utils.data.TensorDataset(features_augmented, labels_augmented)
+        train_dataset_aug = torch.utils.data.TensorDataset(
+            features_augmented, labels_augmented
+        )
         train_loader = torch.utils.data.DataLoader(
             train_dataset_aug,
             batch_size=cfg.data.batch_size,

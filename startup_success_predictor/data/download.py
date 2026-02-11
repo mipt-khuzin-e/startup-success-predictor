@@ -89,7 +89,9 @@ def main() -> None:
 
     logger.info("Next steps:")
     logger.info("1. Add data to DVC: dvc add %s", get_settings().raw_data_dir)
-    logger.info("2. Commit changes: git add %s.dvc .gitignore", get_settings().raw_data_dir)
+    logger.info(
+        "2. Commit changes: git add %s.dvc .gitignore", get_settings().raw_data_dir
+    )
 
 
 if __name__ == "__main__":

@@ -71,7 +71,7 @@
 MLP-классификатор без исправления дисбаланса классов.
 
 ```bash
-uv run uv run python -m startup_success_predictor.cli train train=baseline
+uv run python -m startup_success_predictor.cli train train=baseline
 ```
 
 ### Основная модель
