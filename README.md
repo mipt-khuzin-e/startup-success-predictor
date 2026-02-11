@@ -34,8 +34,8 @@
 
 ## Датасет
 
-- **Источник:** [Kaggle — Startup Investments](https://www.kaggle.com/datasets/justinas/startup-investments/data)
-- **Размер:** ~50+ MB (несколько связанных CSV-файлов), ~54 000 компаний
+- **Источник:** [Kaggle — Startup Success/Fail Dataset from Crunchbase](https://www.kaggle.com/datasets/yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase)
+- **Размер:** ~50+ MB (CSV-файл), ~54 000 компаний
 - **Дисбаланс:** соотношение примерно 90-95% негативных vs 5-10% позитивных примеров — идеальный сценарий для GAN-аугментации
 
 Известные сложности: пропущенные значения, необходимость feature engineering, устаревшие данные, влияние временного периода на успешность.

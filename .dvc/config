@@ -1,4 +1,4 @@
 [core]
-    remote = gdrive
-['remote "gdrive"']
-    url = gdrive://1oGvXPfvmwtFvmsS1jDhwcMYN-YrzhZV5
+    remote = r2
+['remote "r2"']
+    url = https://pub-c5a51c2564804932a4bab4b471d87241.r2.dev/startup-success-predictor

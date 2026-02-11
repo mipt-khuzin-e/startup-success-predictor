@@ -1,12 +1,12 @@
 schema: '2.0'
 stages:
   download:
-    cmd: python -m startup_success_predictor.data.download
+    cmd: uv run python -m startup_success_predictor.data.download
     deps:
     - path: startup_success_predictor/data/download.py
       hash: md5
-      md5: d44160cdeed712cfca395553d87e6703
-      size: 3083
+      md5: be061f5293cb6b7f91cbc9265d044ee4
+      size: 2975
     outs:
     - path: data/raw
       hash: md5

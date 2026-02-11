@@ -46,7 +46,7 @@ def download_startup_data(output_dir: Path | None = None) -> None:
     api = KaggleApi()
     api.authenticate()
 
-    dataset_slug = "justinas/startup-investments"
+    dataset_slug = "yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase"
 
     logger.info("Downloading dataset: %s", dataset_slug)
     api.dataset_download_files(dataset_slug, path=str(output_dir), unzip=True)
