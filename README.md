@@ -148,6 +148,8 @@ uv run dvc repro download
 uv run python -m startup_success_predictor.cli download-data
 ```
 
+> **Примечание:** Для загрузки с Kaggle необходимо настроить учетные данные в `.env` (см. раздел "Установка").
+
 ### 2. Обучение моделей
 
 Запустить локальный сервер MLflow для отслеживания экспериментов:
